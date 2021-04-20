@@ -69,7 +69,7 @@ def train(model, train_loader, valid_loader):
 
         if vloss < best_loss:
             best_loss = vloss
-            torch.save(model.state_dict(), './models/model_best.pth')
+            torch.save(model.state_dict(), 'model_weights/model_best.pth')
 
 
 @torch.no_grad()
