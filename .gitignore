@@ -1,0 +1,11 @@
+data
+*.jpg
+*.png
+*.xml
+model_weights
+*.pth
+*.txt
+.idea
+__pycache__
+.DS_Store
+.DS_Store?
