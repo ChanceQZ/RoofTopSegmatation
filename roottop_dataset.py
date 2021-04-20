@@ -78,6 +78,9 @@ def get_train_valid_data(image_folder, mask_folder, split_rate=10):
     valid_ds = D.Subset(rf_ds, valid_idx)
     return train_ds, valid_ds
 
+def get_test_data():
+    pass
+
 if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
