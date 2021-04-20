@@ -7,6 +7,7 @@
 @Date: 4/20/2021
 """
 
+import os
 import time
 import numpy as np
 import tqdm
@@ -33,6 +34,13 @@ def loss_fn(y_pred, y_true):
     dice = dice_fn(y_pred.sigmoid(), y_true)
     return 0.8 * bce + 0.2 * dice
 
+def save_loss(total_train_losses, total_valid_losses):
+    time_now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    with open("./logs/log_epochs{}_lr{}".format(EPOCHES, LEARNING_RATE), "w") as f:
+        f.write(time_now)
+        f.write("\n")
+        for idx, (train_loss, valid_loss) in enumerate(zip(total_train_losses, total_valid_losses), 1):
+            f.write("epoch:{}, train loss:{}, valid loss:{}\n".format(idx, train_loss, valid_loss))
 
 def train(model, train_loader, valid_loader):
     train_params = [{'params': model.get_1x_lr_params(), 'lr': LEARNING_RATE},
@@ -67,10 +75,14 @@ def train(model, train_loader, valid_loader):
         total_train_losses.append(np.array(epoch_losses).mean())
         total_valid_losses.append(vloss)
 
+        if epoch % CHECKPOINTS_SAVE_TIMES == 0:
+            checkpoints = "epoch_{}_trainloss_{}_validloss_{}.pth"
+            torch.save(model.state_dict(), os.path.join(model_svae_path, "models", checkpoints))
+
         if vloss < best_loss:
             best_loss = vloss
-            torch.save(model.state_dict(), 'model_weights/model_best.pth')
-
+            torch.save(model.state_dict(), os.path.join(model_svae_path, "best_model", "best_model.pth"))
+    save_loss(total_train_losses, total_valid_losses)
 
 @torch.no_grad()
 def validation(model, loader, loss_fn):
@@ -88,7 +100,6 @@ def validation(model, loader, loss_fn):
 def main():
     image_folder, mask_folder = "./data/train/images", "./data/train/masks"
     train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder, 10)
-
     print("The image number of training: %d" % len(train_ds))
     print("The image number of training: %d" % len(train_ds))
 
@@ -97,8 +108,12 @@ def main():
     valid_loader = D.DataLoader(
         valid_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-    model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=True, _print=True)
+    if not os.path.exists(os.path.join(model_svae_path, "models")):
+        os.makedirs(os.path.join(model_svae_path, "models"))
+    if not os.path.exists(os.path.join(model_svae_path, "best_model")):
+        os.makedirs(os.path.join(model_svae_path, "best_model"))
 
+    model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=True, _print=True)
     train(model, train_loader, valid_loader)
 
 
@@ -106,9 +121,13 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 2
     OUTPUT_STRIDE = 16
+    CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
     EPOCHES = 30
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     LEARNING_RATE = 1e-4
     WEIGHT_DECAY = 1e-3
+
+    model_svae_path = "./model_weights/lr_%f" % LEARNING_RATE
+    main()
