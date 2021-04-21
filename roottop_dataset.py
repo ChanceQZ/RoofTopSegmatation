@@ -29,15 +29,23 @@ trfm = A.Compose([
 ])
 
 
-
 class RoofTopDataset(D.Dataset):
-    def __init__(self, image_paths, mask_paths, transform=trfm, test_mode=False):
+    def __init__(self, image_paths, mask_paths, transform=trfm, mode="train"):
         self.image_paths = image_paths
         self.mask_paths = mask_paths
         self.transform = transform
-        self.test_mode = test_mode
+        self.mode = mode
 
         self.len = len(image_paths)
+
+        self.valid_trfm = T.Compose([
+            T.ToPILImage(),
+            T.CenterCrop((IMAGE_SIZE, IMAGE_SIZE)),
+            T.ToTensor(),
+            T.Normalize([0.5, 0.5, 0.5],
+                        [0.5, 0.5, 0.5])
+        ])
+
         self.as_tensor = T.Compose([
             T.ToPILImage(),
             T.Resize(IMAGE_SIZE),
@@ -49,10 +57,13 @@ class RoofTopDataset(D.Dataset):
     # get data operation
     def __getitem__(self, index):
         img = cv2.imread(self.image_paths[index])
-        if not self.test_mode:
+        if self.mode.lower() == "train":
             mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
             augments = self.transform(image=img, mask=mask)
-            return self.as_tensor(augments["image"]), augments["mask"][None] # "None" can add 1st dimension
+            return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
+        elif self.mode.lower() == "valid":
+            mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+            return self.valid_trfm(img), mask[None]
         else:
             return self.as_tensor(img), ''
 
@@ -62,22 +73,16 @@ class RoofTopDataset(D.Dataset):
         """
         return self.len
 
+
 def get_train_valid_data(image_folder, mask_folder, split_rate=10):
     image_paths = glob.glob(os.path.join(image_folder, "*.png"))
     mask_paths = glob.glob(os.path.join(mask_folder, "*.png"))
 
-    rf_ds = RoofTopDataset(image_paths, mask_paths)
+    train_ds = RoofTopDataset(image_paths, mask_paths)
+    valid_ds = RoofTopDataset(image_paths, mask_paths, mode="valid")
 
-    train_idx, valid_idx = [], []
-    for i in range(len(rf_ds)):
-        if i % split_rate == 0:
-            valid_idx.append(i)
-        else:
-            train_idx.append(i)
-
-    train_ds = D.Subset(rf_ds, train_idx)
-    valid_ds = D.Subset(rf_ds, valid_idx)
     return train_ds, valid_ds
+
 
 def get_test_data():
     pass
@@ -85,6 +90,7 @@ def get_test_data():
 if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
+
     image_paths = glob.glob("./data/train/images/*.png")
     mask_paths = glob.glob("data/train/masks/*.png")
 

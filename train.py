@@ -104,7 +104,7 @@ def main():
     image_folder, mask_folder = "./data/train/images", "./data/train/masks"
     train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder, 10)
     print("The image number of training: %d" % len(train_ds))
-    print("The image number of training: %d" % len(train_ds))
+    print("The image number of validation: %d" % len(valid_ds))
 
     train_loader = D.DataLoader(
         train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)

@@ -67,8 +67,8 @@ if __name__ == "__main__":
     checkpoints = "model_weights/lr_0.000100/best_model/best_model.pth"
     # main(checkpoints)
 
-    model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=True, _print=True)
-    model.load_state_dict(torch.load(checkpoints))
+    model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=False, _print=True)
+    model.load_state_dict(torch.load(checkpoints, map_location=torch.device('cpu')))
 
     from torchvision import transforms as T
     trfm = T.Compose([
