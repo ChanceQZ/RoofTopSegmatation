@@ -14,8 +14,8 @@ import albumentations as A
 from torchvision import transforms as T
 import torch.utils.data as D
 
-IMAGE_SIZE = 512
-CROP_SIZE = 512
+IMAGE_SIZE = 256
+CROP_SIZE = 256
 
 trfm = A.Compose([
     A.RandomCrop(CROP_SIZE, CROP_SIZE),
@@ -27,6 +27,7 @@ trfm = A.Compose([
     A.ISONoise(p=0.5),
     A.Blur(blur_limit=3, p=0.5)
 ])
+
 
 
 class RoofTopDataset(D.Dataset):
@@ -49,9 +50,9 @@ class RoofTopDataset(D.Dataset):
     def __getitem__(self, index):
         img = cv2.imread(self.image_paths[index])
         if not self.test_mode:
-            mask = cv2.imread(self.mask_paths[index])
+            mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
             augments = self.transform(image=img, mask=mask)
-            return self.as_tensor(augments['image']), augments['masks']
+            return self.as_tensor(augments["image"]), augments["mask"][None] # "None" can add 1st dimension
         else:
             return self.as_tensor(img), ''
 
@@ -93,9 +94,17 @@ if __name__ == "__main__":
     print(img.shape)
     print(mask.shape)
 
+    loader = D.DataLoader(
+        rf_ds, batch_size=16, shuffle=True, num_workers=0)
+    image, mask = next(iter(loader))
+    print(image.shape)
+    print(mask.shape)
+    """
+
     plt.figure(figsize=(16, 8))
     plt.subplot(121)
     plt.imshow(np.where(mask==1, 255, 0), cmap='gray')
     plt.subplot(122)
     plt.imshow(img[0])
     plt.show()
+"""

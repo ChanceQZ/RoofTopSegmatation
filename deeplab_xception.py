@@ -387,6 +387,7 @@ class DeepLabv3_plus(nn.Module):
         x = torch.cat((x, low_level_features), dim=1)
         x = self.last_conv(x)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
+        x = torch.sigmoid(x)
 
         return x
 
@@ -432,9 +433,10 @@ def get_10x_lr_params(model):
 
 
 if __name__ == "__main__":
-    model = DeepLabv3_plus(nInputChannels=3, n_classes=21, output_stride=16, pretrained=True, _print=True)
+    model = DeepLabv3_plus(nInputChannels=3, n_classes=2, output_stride=16, pretrained=True, _print=True)
     model.eval()
-    image = torch.randn(1, 3, 512, 512)
+    image = torch.randn(16, 3, 512, 512)
     with torch.no_grad():
         output = model.forward(image)
     print(output.size())
+
