@@ -80,7 +80,7 @@ def train(model, train_loader, valid_loader):
             writer.add_scalar("Train_loss", loss.item(), (epoch*iters + idx))
 
         vloss = validation(model, valid_loader, loss_fn)
-        print(raw_line.format(epoch + 1, np.array(epoch_losses).mean(), vloss,
+        print(raw_line.format(epoch, np.array(epoch_losses).mean(), vloss,
                               (time.time() - start_time) / 60 ** 1))
 
         total_train_losses.append(np.array(epoch_losses).mean())
@@ -89,15 +89,15 @@ def train(model, train_loader, valid_loader):
 
         writer.add_scalar("Valid_loss", total_valid_losses[-1], epoch)
 
-        if epoch + 1 % CHECKPOINTS_SAVE_TIMES == 0:
+        if epoch % CHECKPOINTS_SAVE_TIMES == 0:
             save_line = "epoch_{:d}_trainloss_{:.4f}_validloss_{:.4f}.pth"
-            checkpoints = save_line.format(epoch + 1, total_train_losses[-1], total_valid_losses[-1])
+            checkpoints = save_line.format(epoch, total_train_losses[-1], total_valid_losses[-1])
             torch.save(model.state_dict(), os.path.join(model_svae_path, "models", checkpoints))
 
         if vloss < best_loss:
             best_loss = vloss
             torch.save(model.state_dict(), os.path.join(model_svae_path, "best_model", "best_model.pth"))
-    # save_loss(total_train_losses, total_valid_losses)
+    save_loss(total_train_losses, total_valid_losses)
 
 
 @torch.no_grad()
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    CHECKPOINTS_SAVE_TIMES = 20  # frequncy of save checkpoints
+    CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
     EPOCHES = 5000

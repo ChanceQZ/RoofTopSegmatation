@@ -85,13 +85,12 @@ if __name__ == "__main__":
     with torch.no_grad():
         pred = model(img.cuda()).sigmoid().cpu().numpy()[0, 0]
     pred = (pred > 0.5).astype(np.uint8)
-    print(np.unique(pred))
-    print(np.unique(mask[0, 0]))
+    pred = np.where(pred==1, 255, 0)
     plt.figure(figsize=(24, 8))
     plt.subplot(131)
     plt.imshow(pred, cmap='gray')
     plt.subplot(132)
     plt.imshow(img[0].numpy().transpose(1, 2, 0))
     plt.subplot(133)
-    plt.imshow(mask[0, 0])
+    plt.imshow(np.where(mask[0, 0]==1, 255, 0))
     plt.show()
