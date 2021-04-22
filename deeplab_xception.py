@@ -387,7 +387,6 @@ class DeepLabv3_plus(nn.Module):
         x = torch.cat((x, low_level_features), dim=1)
         x = self.last_conv(x)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
-        x = torch.sigmoid(x)
 
         return x
 

@@ -14,6 +14,7 @@ from utils.metrics import Evaluator
 from roottop_dataset import get_test_data
 from deeplab_xception import DeepLabv3_plus
 from utils.utils import sliding, padding
+import torch.utils.data as D
 
 WINDOWS_SIZE = 512
 STEP_SIZE = 512
@@ -64,34 +65,33 @@ if __name__ == "__main__":
     OUTPUT_STRIDE = 16
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    checkpoints = "model_weights/lr_0.000100/best_model/best_model.pth"
+    checkpoints = "model_weights/lr_0.001/best_model/best_model.pth"
     # main(checkpoints)
 
     model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=False, _print=True)
     model.load_state_dict(torch.load(checkpoints, map_location=torch.device('cpu')))
 
-    from torchvision import transforms as T
-    trfm = T.Compose([
-        T.ToPILImage(),
-        T.Resize(256),
-        T.ToTensor(),
-        T.Normalize([0.5, 0.5, 0.5],
-                    [0.5, 0.5, 0.5]),
-    ])
-    image = torch.randn(16, 3, 256, 256)
     import cv2
     import matplotlib.pyplot as plt
-    img_path = "data/train/images/positive_num35.png"
-    img = cv2.imread(img_path)[1200:1200+256, 800:800+256, :]
+    from roottop_dataset import get_train_valid_data
+
+    image_folder = "./data/train/images"
+    mask_folder = "./data/train/masks"
+    _, ds = get_train_valid_data(image_folder, mask_folder)
+    loader = D.DataLoader(ds, batch_size=1, shuffle=True)
+    img, mask = next(iter(loader))
     model.eval()
+    model = model.cuda()
     with torch.no_grad():
-        pred = model(trfm(img).unsqueeze(0))
-    pred_sigmoid = pred.sigmoid().cpu().numpy()
-    pred_sigmoid = (pred_sigmoid > 0.5).astype(np.uint8)
-    print(np.unique(pred_sigmoid))
-    plt.figure(figsize=(16, 8))
-    plt.subplot(121)
-    plt.imshow(np.where(pred_sigmoid == 1, 255, 0)[0, 0], cmap='gray')
-    plt.subplot(122)
-    plt.imshow(img)
+        pred = model(img.cuda()).sigmoid().cpu().numpy()[0, 0]
+    pred = (pred > 0.5).astype(np.uint8)
+    print(np.unique(pred))
+    print(np.unique(mask[0, 0]))
+    plt.figure(figsize=(24, 8))
+    plt.subplot(131)
+    plt.imshow(pred, cmap='gray')
+    plt.subplot(132)
+    plt.imshow(img[0].numpy().transpose(1, 2, 0))
+    plt.subplot(133)
+    plt.imshow(mask[0, 0])
     plt.show()
