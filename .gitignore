@@ -9,3 +9,4 @@ model_weights
 __pycache__
 .DS_Store
 .DS_Store?
+logs
