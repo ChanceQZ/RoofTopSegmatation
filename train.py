@@ -18,6 +18,7 @@ import torch.utils.data as D
 from roottop_dataset import get_train_valid_data
 from deeplab_xception import DeepLabv3_plus, get_1x_lr_params, get_10x_lr_params
 from utils.loss_func import SoftDiceLoss
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 header = r"""
         Train | Valid
@@ -26,7 +27,7 @@ Epoch |  Loss |  Loss | Time, m
 #          Epoch         metrics            time
 raw_line = "{:6d}" + "\u2502{:7.3f}" * 2 + "\u2502{:6.2f}"
 
-bce_fn = nn.BCELoss()
+bce_fn = nn.BCEWithLogitsLoss()
 dice_fn = SoftDiceLoss()
 
 
@@ -37,8 +38,11 @@ def loss_fn(y_pred, y_true):
 
 
 def save_loss(total_train_losses, total_valid_losses):
+    if not os.path.exists("./logs"):
+        os.makedirs("./logs")
+
     time_now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    with open("./logs/log_epochs{}_lr{}".format(EPOCHES, LEARNING_RATE), "w") as f:
+    with open("./logs/log_epochs{}_lr{}.txt".format(EPOCHES, LEARNING_RATE), "w") as f:
         f.write(time_now)
         f.write("\n")
         for idx, (train_loss, valid_loss) in enumerate(zip(total_train_losses, total_valid_losses), 1):
@@ -50,15 +54,17 @@ def train(model, train_loader, valid_loader):
                     {"params": get_10x_lr_params(model), "lr": LEARNING_RATE * 10}]
 
     optimizer = torch.optim.AdamW(train_params, lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2)
     model = model.to(DEVICE)
     best_loss = 10
     print(header)
     total_train_losses, total_valid_losses = [], []
-    for epoch in range(1, EPOCHES + 1):
+    iters = (len(train_loader))
+    for epoch in range(EPOCHES):
         epoch_losses = []
         start_time = time.time()
         model.train()
-        for image, target in tqdm.tqdm(train_loader):
+        for idx, (image, target) in enumerate(train_loader):
             image, target = image.to(DEVICE), target.float().to(DEVICE)
             output = model(image)
             loss = loss_fn(output, target)
@@ -66,20 +72,21 @@ def train(model, train_loader, valid_loader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            scheduler.step(epoch + idx / iters)
 
             epoch_losses.append(loss.item())
             # print(loss.item())
 
         vloss = validation(model, valid_loader, loss_fn)
-        print(raw_line.format(epoch, np.array(epoch_losses).mean(), vloss,
+        print(raw_line.format(epoch + 1, np.array(epoch_losses).mean(), vloss,
                               (time.time() - start_time) / 60 ** 1))
 
         total_train_losses.append(np.array(epoch_losses).mean())
         total_valid_losses.append(vloss)
 
-        if epoch % CHECKPOINTS_SAVE_TIMES == 0:
+        if epoch + 1 % CHECKPOINTS_SAVE_TIMES == 0:
             save_line = "epoch_{:d}_trainloss_{:.4f}_validloss_{:.4f}.pth"
-            checkpoints = save_line.format(epoch, total_train_losses[-1], total_valid_losses[-1])
+            checkpoints = save_line.format(epoch + 1, total_train_losses[-1], total_valid_losses[-1])
             torch.save(model.state_dict(), os.path.join(model_svae_path, "models", checkpoints))
 
         if vloss < best_loss:
@@ -131,10 +138,10 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
+    CHECKPOINTS_SAVE_TIMES = 20  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
-    EPOCHES = 50
+    EPOCHES = 5000
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     LEARNING_RATE = 0.001
     WEIGHT_DECAY = 0.001
