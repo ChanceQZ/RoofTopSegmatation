@@ -19,6 +19,7 @@ from roottop_dataset import get_train_valid_data
 from deeplab_xception import DeepLabv3_plus, get_1x_lr_params, get_10x_lr_params
 from utils.loss_func import SoftDiceLoss
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.utils.tensorboard import SummaryWriter
 
 header = r"""
         Train | Valid
@@ -76,6 +77,7 @@ def train(model, train_loader, valid_loader):
 
             epoch_losses.append(loss.item())
             # print(loss.item())
+            writer.add_scalar("Train_loss", loss.item(), (epoch*iters + idx))
 
         vloss = validation(model, valid_loader, loss_fn)
         print(raw_line.format(epoch + 1, np.array(epoch_losses).mean(), vloss,
@@ -83,6 +85,9 @@ def train(model, train_loader, valid_loader):
 
         total_train_losses.append(np.array(epoch_losses).mean())
         total_valid_losses.append(vloss)
+
+
+        writer.add_scalar("Valid_loss", total_valid_losses[-1], epoch)
 
         if epoch + 1 % CHECKPOINTS_SAVE_TIMES == 0:
             save_line = "epoch_{:d}_trainloss_{:.4f}_validloss_{:.4f}.pth"
@@ -92,7 +97,7 @@ def train(model, train_loader, valid_loader):
         if vloss < best_loss:
             best_loss = vloss
             torch.save(model.state_dict(), os.path.join(model_svae_path, "best_model", "best_model.pth"))
-    save_loss(total_train_losses, total_valid_losses)
+    # save_loss(total_train_losses, total_valid_losses)
 
 
 @torch.no_grad()
@@ -147,4 +152,5 @@ if __name__ == "__main__":
     WEIGHT_DECAY = 0.001
 
     model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
+    writer = SummaryWriter(log_dir="./logs", flush_secs=60)
     main()
