@@ -58,7 +58,7 @@ def train(model, train_loader, valid_loader):
         epoch_losses = []
         start_time = time.time()
         model.train()
-        for image, target in train_loader:
+        for image, target in tqdm.tqdm(train_loader):
             image, target = image.to(DEVICE), target.float().to(DEVICE)
             output = model(image)
             loss = loss_fn(output, target)
@@ -78,7 +78,8 @@ def train(model, train_loader, valid_loader):
         total_valid_losses.append(vloss)
 
         if epoch % CHECKPOINTS_SAVE_TIMES == 0:
-            checkpoints = "epoch_{}_trainloss_{}_validloss_{}.pth"
+            save_line = "epoch_{:d}_trainloss_{:.4f}_validloss_{:.4f}.pth"
+            checkpoints = save_line.format(epoch, total_train_losses[-1], total_valid_losses[-1])
             torch.save(model.state_dict(), os.path.join(model_svae_path, "models", checkpoints))
 
         if vloss < best_loss:
@@ -102,7 +103,7 @@ def validation(model, loader, loss_fn):
 
 def main():
     image_folder, mask_folder = "./data/train/images", "./data/train/masks"
-    train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder, 10)
+    train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder)
     print("The image number of training: %d" % len(train_ds))
     print("The image number of validation: %d" % len(valid_ds))
 
@@ -133,10 +134,10 @@ if __name__ == "__main__":
     CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
-    EPOCHES = 250
+    EPOCHES = 50
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    LEARNING_RATE = 1e-4
-    WEIGHT_DECAY = 1e-3
+    LEARNING_RATE = 0.001
+    WEIGHT_DECAY = 0.001
 
-    model_svae_path = "./model_weights/lr_%f" % LEARNING_RATE
+    model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
     main()

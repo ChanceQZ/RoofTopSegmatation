@@ -6,3 +6,5 @@
 @Description: 
 @Date: 4/20/2021
 """
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
