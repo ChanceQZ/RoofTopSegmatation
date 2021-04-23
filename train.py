@@ -146,7 +146,7 @@ if __name__ == "__main__":
     CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
-    EPOCHES = 5000
+    EPOCHES = 50000
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     LEARNING_RATE = 0.001
     WEIGHT_DECAY = 0.001

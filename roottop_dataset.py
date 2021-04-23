@@ -34,13 +34,16 @@ val_trfm = A.Compose([
 
 
 class RoofTopDataset(D.Dataset):
-    def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
-        self.image_paths = image_paths
-        self.mask_paths = mask_paths
+    # def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
+    #     self.image_paths = image_paths
+    #     self.mask_paths = mask_paths
+    def __init__(self, image_list, mask_list, transform=train_trfm, test_mode=False):
+        self.image_list = image_list
+        self.mask_list = mask_list
         self.transform = transform
         self.test_mode = test_mode
 
-        self.len = len(image_paths)
+        self.len = len(image_list)
 
         self.as_tensor = T.Compose([
             T.ToPILImage(),
@@ -52,9 +55,11 @@ class RoofTopDataset(D.Dataset):
 
     # get data operation
     def __getitem__(self, index):
-        img = cv2.imread(self.image_paths[index])
+        # img = cv2.imread(self.image_paths[index])
+        img = self.image_list[index]
         if not self.test_mode:
-            mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+            # mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+            mask = self.mask_list[index]
             augments = self.transform(image=img, mask=mask)
             return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
         else:
@@ -68,8 +73,8 @@ class RoofTopDataset(D.Dataset):
 
 
 def get_train_valid_data(image_folder, mask_folder):
-    image_paths = glob.glob(os.path.join(image_folder, "*.png"))
-    mask_paths = glob.glob(os.path.join(mask_folder, "*.png"))
+    image_paths = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
+    mask_paths = [cv2.imread(img, cv2.IMREAD_GRAYSCALE) for img in glob.glob(os.path.join(mask_folder, "*.png"))]
     train_ds = RoofTopDataset(image_paths, mask_paths, transform=train_trfm)
     valid_ds = RoofTopDataset(image_paths, mask_paths, transform=val_trfm)
 

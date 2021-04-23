@@ -63,8 +63,8 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    # DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    DEVICE = "cpu"
     checkpoints = "model_weights/lr_0.001/best_model/best_model.pth"
     # main(checkpoints)
 
@@ -81,9 +81,9 @@ if __name__ == "__main__":
     loader = D.DataLoader(ds, batch_size=1, shuffle=True)
     img, mask = next(iter(loader))
     model.eval()
-    model = model.cuda()
+    model = model.to(DEVICE)
     with torch.no_grad():
-        pred = model(img.cuda()).sigmoid().cpu().numpy()[0, 0]
+        pred = model(img.to(DEVICE)).sigmoid().cpu().numpy()[0, 0]
     pred = (pred > 0.5).astype(np.uint8)
     pred = np.where(pred==1, 255, 0)
     plt.figure(figsize=(24, 8))
@@ -92,5 +92,5 @@ if __name__ == "__main__":
     plt.subplot(132)
     plt.imshow(img[0].numpy().transpose(1, 2, 0))
     plt.subplot(133)
-    plt.imshow(np.where(mask[0, 0]==1, 255, 0))
+    plt.imshow(np.where(mask[0, 0]==1, 255, 0), cmap='gray')
     plt.show()
