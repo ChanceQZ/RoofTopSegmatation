@@ -37,7 +37,7 @@ class RoofTopDataset(D.Dataset):
     # def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
     #     self.image_paths = image_paths
     #     self.mask_paths = mask_paths
-    def __init__(self, image_list, mask_list, transform=train_trfm, test_mode=False):
+    def __init__(self, image_list, mask_list=None, transform=train_trfm, test_mode=False):
         self.image_list = image_list
         self.mask_list = mask_list
         self.transform = transform
@@ -46,8 +46,6 @@ class RoofTopDataset(D.Dataset):
         self.len = len(image_list)
 
         self.as_tensor = T.Compose([
-            T.ToPILImage(),
-            T.Resize(IMAGE_SIZE),
             T.ToTensor(),
             T.Normalize([0.5, 0.5, 0.5],
                         [0.5, 0.5, 0.5]),
@@ -63,7 +61,7 @@ class RoofTopDataset(D.Dataset):
             augments = self.transform(image=img, mask=mask)
             return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
         else:
-            return self.as_tensor(img), ""
+            return self.as_tensor(img)
 
     def __len__(self):
         """
@@ -73,31 +71,56 @@ class RoofTopDataset(D.Dataset):
 
 
 def get_train_valid_data(image_folder, mask_folder):
-    image_paths = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
-    mask_paths = [cv2.imread(img, cv2.IMREAD_GRAYSCALE) for img in glob.glob(os.path.join(mask_folder, "*.png"))]
-    train_ds = RoofTopDataset(image_paths, mask_paths, transform=train_trfm)
-    valid_ds = RoofTopDataset(image_paths, mask_paths, transform=val_trfm)
+    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
+    mask_list = [cv2.imread(img, cv2.IMREAD_GRAYSCALE) for img in glob.glob(os.path.join(mask_folder, "*.png"))]
+    train_ds = RoofTopDataset(image_list, mask_list, transform=train_trfm)
+    valid_ds = RoofTopDataset(image_list, mask_list, transform=val_trfm)
 
     return train_ds, valid_ds
 
 
-def get_test_data():
-    pass
+def get_test_data(image_folder):
+    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))[:2]]
+    test_ds = RoofTopDataset(image_list, test_mode=True)
+
+    return test_ds
 
 
 if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
+    from utils.utils import sliding
+    import torch.nn.functional as F
+    test_ds = get_test_data("./data/test/images")
+    loader = D.DataLoader(test_ds, batch_size=1, shuffle=False)
 
-    image_folder = "./data/train/images"
-    mask_folder = "./data/train/masks"
-    train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder)
-    """
+    image = next(iter(loader)).squeeze(0)
+    WINDOWS_SIZE = 256
+    STEP_SIZE = 256
+    h_padding = STEP_SIZE - (image.shape[1] - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+    w_padding = STEP_SIZE - (image.shape[2] - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+
+    n_row = (image.shape[1] - WINDOWS_SIZE + h_padding + STEP_SIZE) / STEP_SIZE
+    n_col = (image.shape[2] - WINDOWS_SIZE + w_padding + STEP_SIZE) / STEP_SIZE
+    padding_image = F.pad(image, (0, w_padding, 0, h_padding))
+
+    print(h_padding, w_padding)
+    print(padding_image.shape)
+    import time
+    import torch
+    start = time.time()
+    sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
+    win_stack = torch.stack([win for win in sliding_generator], 0)
+    print((time.time() - start))
+    print(win_stack.shape)
+
+    print(win_stack[:, :1, :, :].shape)
+    from torchvision.utils import make_grid
+    print(make_grid(win_stack[:, :1, :, :], nrow=int(n_row), padding=0).shape)
 
     plt.figure(figsize=(16, 8))
     plt.subplot(121)
-    plt.imshow(np.where(mask==1, 255, 0), cmap='gray')
+    plt.imshow(padding_image[0])
     plt.subplot(122)
-    plt.imshow(img[0])
+    plt.imshow(make_grid(win_stack, nrow=int(n_row), padding=0)[0])
     plt.show()
-"""

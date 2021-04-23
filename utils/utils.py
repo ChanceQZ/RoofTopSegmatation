@@ -8,15 +8,14 @@
 """
 import numpy as np
 
-def padding(image, height, width, cons=0):
-    padding_image = np.zeros(image.shape[0], height, width)
-    padding_image[:, :image.shape[1], :image.shape[2]] = image
-    return padding_image
 
 def sliding(image, step_size, windows_size):
-    for row in range(0, image.shape[0], step_size):
-        for col in range(0, image.shape[1], step_size):
-            yield image[:, row:row + windows_size, col:col + windows_size]
+    for row in range(0, image.shape[-2], step_size):
+        for col in range(0, image.shape[-1], step_size):
+            if image.dim == 4:
+                yield image[:, :, row:row + windows_size, col:col + windows_size]
+            elif image.dim == 3:
+                yield image[:, row:row + windows_size, col:col + windows_size]
 
 
 if __name__ == "__main__":
