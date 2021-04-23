@@ -13,50 +13,65 @@ import torch
 from utils.metrics import Evaluator
 from roottop_dataset import get_test_data
 from deeplab_xception import DeepLabv3_plus
-from utils.utils import sliding, padding
+from utils.utils import sliding
 import torch.utils.data as D
+import torch.nn.functional as F
+from torchvision.utils import make_grid
 
-WINDOWS_SIZE = 512
-STEP_SIZE = 512
-
-
-def image_join(temp, image_arr, h_step, w_step):
-    temp = np.zeros_like(temp, dtype=int)
-    for h in range(h_step):
-        for w in range(w_step):
-            temp[h * STEP_SIZE + WINDOWS_SIZE]
+WINDOWS_SIZE = 256
+STEP_SIZE = 256
 
 
 @torch.no_grad()
-def predict(model, loader):
-    model = model.cuda()
+def predict_image(model, image):
+    model = model.to(DEVICE)
     model.eval()
+
+    if image.dim() == 3:
+        image = image.unsqueeze(1)
+    h_padding = STEP_SIZE - (image.shape[-2] - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+    w_padding = STEP_SIZE - (image.shape[-1] - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+
+    n_row = (image.shape[-2] - WINDOWS_SIZE + h_padding + STEP_SIZE) // STEP_SIZE
+
+    padding_image = F.pad(image, (0, w_padding, 0, h_padding))
+
+    sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
+    win_stack = torch.stack([win for win in sliding_generator], 0)
+    # TODO: May overflow GPU memory
+    # model(win_stack.to(DEVICE)).shape == (num, 1, WINDOWS_SIZE, WINDOWS_SIZE)
+    pred = model(win_stack.to(DEVICE)).squeezed(1).sigmoid().cpu()
+    pred = (pred > 0.5).astype(np.uint8)
+    # TODO: Only support WINDOWS_SIZE==STEP_SIZE
+    pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
+    assert pred_merge.dim() == 2, "dimension of pred_merge is error"
+    return pred_merge
+
+
+def save_image():
+    pass
+
+
+@torch.no_grad()
+def ensemble_predict(models, loader, ensemble_mode="voting"):
     for image in tqdm.tqdm(loader):
-        h_step, w_step = 0, 0
-        if image.shape[1] % WINDOWS_SIZE == 0:
-            h_step = image.shape[1] // WINDOWS_SIZE
-        else:
-            h_step = image.shape[1] // WINDOWS_SIZE + 1
-
-        if image.shape[2] % WINDOWS_SIZE == 0:
-            w_step = image.shape[2] // WINDOWS_SIZE
-        else:
-            w_step = image.shape[2] // WINDOWS_SIZE + 1
-
-        padding_image = padding(image, h_step * WINDOWS_SIZE, w_step * WINDOWS_SIZE)
-
-        sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
-        win_stack = torch.stack([win for win in sliding_generator], 0)
-        output = model(win_stack.to(DEVICE))
-        pred = np.argmax(output.cpu().numpy(), axis=1)
-
-        image_join(padding_image, pred, h_step, w_step)
-
+        results = []
+        for model in models:
+            result = predict_image(model, image)
+            results.append(result)
+        result_tensor = torch.stack(results, 0)
+        if ensemble_mode == "voting":
+            ensemble_result = torch.mode(result_tensor, 0)[0].numpy()
+        elif ensemble_mode == "union":
+            ensemble_result = torch.any(result_tensor==1, 0).numpy()
 
 def main(checkpoints):
     model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=True, _print=True)
     model.load_state_dict(torch.load(checkpoints))
-    predict(model)
+    models = [model]
+
+
+    ensemble_predict(model)
 
 
 if __name__ == "__main__":
@@ -85,12 +100,12 @@ if __name__ == "__main__":
     with torch.no_grad():
         pred = model(img.to(DEVICE)).sigmoid().cpu().numpy()[0, 0]
     pred = (pred > 0.5).astype(np.uint8)
-    pred = np.where(pred==1, 255, 0)
+    pred = np.where(pred == 1, 255, 0)
     plt.figure(figsize=(24, 8))
     plt.subplot(131)
     plt.imshow(pred, cmap='gray')
     plt.subplot(132)
     plt.imshow(img[0].numpy().transpose(1, 2, 0))
     plt.subplot(133)
-    plt.imshow(np.where(mask[0, 0]==1, 255, 0), cmap='gray')
+    plt.imshow(np.where(mask[0, 0] == 1, 255, 0), cmap='gray')
     plt.show()
