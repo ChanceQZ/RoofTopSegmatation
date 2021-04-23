@@ -12,9 +12,9 @@ import numpy as np
 def sliding(image, step_size, windows_size):
     for row in range(0, image.shape[-2], step_size):
         for col in range(0, image.shape[-1], step_size):
-            if image.dim == 4:
+            if image.dim() == 4:
                 yield image[:, :, row:row + windows_size, col:col + windows_size]
-            elif image.dim == 3:
+            elif image.dim() == 3:
                 yield image[:, row:row + windows_size, col:col + windows_size]
 
 

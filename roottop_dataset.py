@@ -80,7 +80,7 @@ def get_train_valid_data(image_folder, mask_folder):
 
 
 def get_test_data(image_folder):
-    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))[:2]]
+    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
     test_ds = RoofTopDataset(image_list, test_mode=True)
 
     return test_ds
