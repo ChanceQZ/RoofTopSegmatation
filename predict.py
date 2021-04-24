@@ -7,6 +7,7 @@
 @Date: 4/20/2021
 """
 
+import utils
 import tqdm
 import cv2
 import numpy as np
@@ -57,7 +58,7 @@ def save_image():
 
 @torch.no_grad()
 def ensemble_predict(models, loader, ensemble_mode="voting"):
-    for idx, image in tqdm.tqdm(enumerate(loader)):
+    for image, img_name in tqdm.tqdm(loader):
         results = []
         for model in models:
             result = predict_image(model, image)
@@ -67,22 +68,28 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
         if ensemble_mode == "voting":
             ensemble_result = torch.mode(result_tensor, 0)[0].numpy()
         elif ensemble_mode == "union":
-            ensemble_result = torch.any(result_tensor == 1, 0).numpy()
-        ensemble_result = np.where(ensemble_result == 1, 255, 0)
-        cv2.imwrite("./data/test_test/predict/img_%d.png" % idx, ensemble_result)
-        print("./data/test_test/predict/img_%d.png" % idx)
+            ensemble_result = torch.any(result_tensor == 1, 0).numpy().astype(np.uint8)
+        # ensemble_result = np.where(ensemble_result == 1, 255, 0)
+        cv2.imwrite("./data/test/ensemble_predict/%s" % img_name, ensemble_result)
+        # print("./data/test/ensemble_predict/%s" % img_name)
 
 
 def main():
-    checkpoints = "model_weights/best_model.pth"
-    model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=False, _print=True)
-    model.load_state_dict(torch.load(checkpoints, map_location=torch.device(DEVICE)))
-    models = [model]
+    import json
+    ensamble_config = "ensemble_config.json"
+    with open(ensamble_config) as f:
+        weights = json.load(f)
 
-    test_ds = get_test_data("./data/test_test/raw")
+    models = []
+    for weight in weights.values():
+        model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=False, _print=False)
+        model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
+        models.append(model)
+
+    test_ds = get_test_data("./data/test/images")
     test_loader = D.DataLoader(test_ds, batch_size=1, shuffle=False)
 
-    ensemble_predict(models, test_loader)
+    ensemble_predict(models, test_loader, ensemble_mode="union")
 
 
 if __name__ == "__main__":

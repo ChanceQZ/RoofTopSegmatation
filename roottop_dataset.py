@@ -37,9 +37,10 @@ class RoofTopDataset(D.Dataset):
     # def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
     #     self.image_paths = image_paths
     #     self.mask_paths = mask_paths
-    def __init__(self, image_list, mask_list=None, transform=train_trfm, test_mode=False):
+    def __init__(self, image_list, mask_list=None, name_list=None, transform=train_trfm, test_mode=False):
         self.image_list = image_list
         self.mask_list = mask_list
+        self.name_list = name_list
         self.transform = transform
         self.test_mode = test_mode
 
@@ -61,7 +62,8 @@ class RoofTopDataset(D.Dataset):
             augments = self.transform(image=img, mask=mask)
             return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
         else:
-            return self.as_tensor(img)
+            img_name = self.name_list[index]
+            return self.as_tensor(img), img_name
 
     def __len__(self):
         """
@@ -81,7 +83,8 @@ def get_train_valid_data(image_folder, mask_folder):
 
 def get_test_data(image_folder):
     image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
-    test_ds = RoofTopDataset(image_list, test_mode=True)
+    name_list = [os.path.basename(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
+    test_ds = RoofTopDataset(image_list, name_list=name_list, test_mode=True)
 
     return test_ds
 
