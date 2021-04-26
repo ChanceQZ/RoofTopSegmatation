@@ -40,11 +40,8 @@ def loss_fn(y_pred, y_true):
 
 
 def save_loss(total_train_losses, total_valid_losses):
-    if not os.path.exists("./logs"):
-        os.makedirs("./logs")
-
     time_now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    with open("./logs/log_epochs{}_lr{}.txt".format(EPOCHES, LEARNING_RATE), "w") as f:
+    with open("{}/log_epochs{}_lr{}.txt".format(log_folder, EPOCHES, LEARNING_RATE), "w") as f:
         f.write(time_now)
         f.write("\n")
         for idx, (train_loss, valid_loss) in enumerate(zip(total_train_losses, total_valid_losses), 1):
@@ -155,5 +152,8 @@ if __name__ == "__main__":
     WEIGHT_DECAY = 0.001
 
     model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
-    writer = SummaryWriter(log_dir="./logs", flush_secs=60)
+
+    import datetime
+    log_folder = "./logs/%s" % (datetime.date.today().strftime('%y-%m-%d'))
+    writer = SummaryWriter(log_dir=log_folder, flush_secs=60)
     main()

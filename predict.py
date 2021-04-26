@@ -98,4 +98,5 @@ if __name__ == "__main__":
     N_CLASS = 1
     OUTPUT_STRIDE = 16
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    DEVICE = "cpu"
     main()

@@ -22,7 +22,7 @@ img_pred_list = glob.glob(img_pred_floder + "/*.png")
 acc_list, pre_list, recall_list, f1_list = [], [], [], []
 
 TN_total, FP_total, FN_total, TP_total = 0, 0, 0, 0
-for img_truth, img_pred in tqdm(zip(img_truth_list, img_pred_list)):
+for img_truth, img_pred in tqdm(zip(img_truth_list, img_pred_list), total=len(img_truth_list)):
 
     truth = np.array(Image.open(img_truth).convert('L')).reshape((-1)).tolist()
     predict = np.array(Image.open(img_pred).convert('L')).reshape((-1)).tolist()
