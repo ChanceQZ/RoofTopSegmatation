@@ -3,7 +3,8 @@
 """
 @File: preprocess.py
 @Author: Chance (Qian Zhen)
-@Description: Training dataset augmentation offline
+@Description: Training dataset augmentation offline.
+              Support up-sampling strategy based on positive and negative
 @Date: 4/26/2021
 """
 import cv2
@@ -30,12 +31,13 @@ train_trfm = A.Compose([
 ])
 
 
-def transform(image_filename, mask_filename):
+def transform(image_filename, mask_filename, augment_num):
     image = cv2.imread(image_filename)
     mask = cv2.imread(mask_filename, cv2.IMREAD_GRAYSCALE)
+    # Show mask image in software
     # mask = np.where(mask == 1, 255, 0)
     aug_image_list, aug_mask_list = [], []
-    for _ in range(AUGMENT_NUM):
+    for _ in range(augment_num):
         augments = train_trfm(image=image, mask=mask)
         aug_image_list.append(augments["image"])
         aug_mask_list.append(augments["mask"])
@@ -69,6 +71,8 @@ def multi_processing_saveimg(
 
 
 if __name__ == "__main__":
+    POS_SAMPLE_NUM, NEG_SAMPLE_NUM = 120, 20
+
     src_image_path = "./data/train/images"
     src_mask_path = "./data/train/masks"
 
@@ -81,7 +85,9 @@ if __name__ == "__main__":
     with concurrent.futures.ProcessPoolExecutor() as executor:
         image_files = glob.glob(src_image_path + "/*.png")
         mask_files = glob.glob(src_mask_path + "/*.png")
-        for aug_images, aug_masks in executor.map(transform, image_files, mask_files):
+        aug_nums = [POS_SAMPLE_NUM if "positive" in name else NEG_SAMPLE_NUM for name in image_files]
+
+        for aug_images, aug_masks in executor.map(transform, image_files, mask_files, aug_nums):
             aug_image_list.extend(aug_images)
             aug_mask_list.extend(aug_masks)
 
