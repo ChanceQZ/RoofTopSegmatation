@@ -13,6 +13,7 @@ import cv2
 import albumentations as A
 from torchvision import transforms as T
 import torch.utils.data as D
+import concurrent.futures
 
 IMAGE_SIZE = 256
 CROP_SIZE = 256
@@ -37,7 +38,7 @@ class RoofTopDataset(D.Dataset):
     # def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
     #     self.image_paths = image_paths
     #     self.mask_paths = mask_paths
-    def __init__(self, image_list, mask_list=None, name_list=None, transform=train_trfm, test_mode=False):
+    def __init__(self, image_list, mask_list=None, name_list=None, transform=None, test_mode=False):
         self.image_list = image_list
         self.mask_list = mask_list
         self.name_list = name_list
@@ -59,8 +60,12 @@ class RoofTopDataset(D.Dataset):
         if not self.test_mode:
             # mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
             mask = self.mask_list[index]
-            augments = self.transform(image=img, mask=mask)
-            return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
+
+            if self.transform is None:
+                return self.as_tensor(img), mask[None]
+            else:
+                augments = self.transform(image=img, mask=mask)
+                return self.as_tensor(augments["image"]), augments["mask"][None]  # "None" can add 1st dimension
         else:
             img_name = self.name_list[index]
             return self.as_tensor(img), img_name
@@ -72,18 +77,40 @@ class RoofTopDataset(D.Dataset):
         return self.len
 
 
-def get_train_valid_data(image_folder, mask_folder):
-    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
-    mask_list = [cv2.imread(img, cv2.IMREAD_GRAYSCALE) for img in glob.glob(os.path.join(mask_folder, "*.png"))]
-    train_ds = RoofTopDataset(image_list, mask_list, transform=train_trfm)
-    valid_ds = RoofTopDataset(image_list, mask_list, transform=val_trfm)
+def load_img_mask(image_filename, mask_filename):
+    image = cv2.imread(image_filename)
+    mask = cv2.imread(mask_filename, cv2.IMREAD_GRAYSCALE)
+    return image, mask
 
-    return train_ds, valid_ds
+
+def load_img(image_filename):
+    image = cv2.imread(image_filename)
+    return image
+
+
+def get_train_valid_data(image_folder, mask_folder):
+    image_list, mask_list = [], []
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        image_files = glob.glob(image_folder + "/*.png")
+        mask_files = glob.glob(mask_folder + "/*.png")
+
+        for images, masks in executor.map(load_img_mask, image_files, mask_files):
+            image_list.append(images)
+            mask_list.append(masks)
+
+    ds = RoofTopDataset(image_list, mask_list)
+
+    return ds
 
 
 def get_test_data(image_folder):
-    image_list = [cv2.imread(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
-    name_list = [os.path.basename(img) for img in glob.glob(os.path.join(image_folder, "*.png"))]
+    image_files = glob.glob(image_folder + "/*.png")
+    image_list = []
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        for image in executor.map(load_img, image_files):
+            image_list.append(image)
+    name_list = [os.path.basename(img) for img in image_files]
     test_ds = RoofTopDataset(image_list, name_list=name_list, test_mode=True)
 
     return test_ds
@@ -94,6 +121,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from utils.utils import sliding
     import torch.nn.functional as F
+
     test_ds = get_test_data("./data/test/images")
     loader = D.DataLoader(test_ds, batch_size=1, shuffle=False)
 
@@ -111,6 +139,7 @@ if __name__ == "__main__":
     print(padding_image.shape)
     import time
     import torch
+
     start = time.time()
     sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
     win_stack = torch.stack([win for win in sliding_generator], 0)
@@ -119,6 +148,7 @@ if __name__ == "__main__":
 
     print(win_stack[:, :1, :, :].shape)
     from torchvision.utils import make_grid
+
     print(make_grid(win_stack[:, :1, :, :], nrow=int(n_row), padding=0).shape)
 
     plt.figure(figsize=(16, 8))

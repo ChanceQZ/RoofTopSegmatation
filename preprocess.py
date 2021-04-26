@@ -30,6 +30,10 @@ train_trfm = A.Compose([
     A.Blur(blur_limit=3, p=0.5)
 ])
 
+val_trfm = A.Compose([
+    A.RandomCrop(CROP_SIZE, CROP_SIZE)
+])
+
 
 def transform(image_filename, mask_filename, augment_num):
     image = cv2.imread(image_filename)
@@ -38,7 +42,8 @@ def transform(image_filename, mask_filename, augment_num):
     # mask = np.where(mask == 1, 255, 0)
     aug_image_list, aug_mask_list = [], []
     for _ in range(augment_num):
-        augments = train_trfm(image=image, mask=mask)
+        # transfrom need change
+        augments = val_trfm(image=image, mask=mask)
         aug_image_list.append(augments["image"])
         aug_mask_list.append(augments["mask"])
     return aug_image_list, aug_mask_list
@@ -76,8 +81,8 @@ if __name__ == "__main__":
     src_image_path = "./data/train/images"
     src_mask_path = "./data/train/masks"
 
-    aug_image_path = "./data/train_transform/images"
-    aug_mask_path = "./data/train_transform/masks"
+    aug_image_path = "./data/valid/images"
+    aug_mask_path = "./data/valid/masks"
 
     aug_image_list, aug_mask_list = [], []
 
@@ -85,9 +90,9 @@ if __name__ == "__main__":
     with concurrent.futures.ProcessPoolExecutor() as executor:
         image_files = glob.glob(src_image_path + "/*.png")
         mask_files = glob.glob(src_mask_path + "/*.png")
-        aug_nums = [POS_SAMPLE_NUM if "positive" in name else NEG_SAMPLE_NUM for name in image_files]
-
-        for aug_images, aug_masks in executor.map(transform, image_files, mask_files, aug_nums):
+        # train_aug_nums = [POS_SAMPLE_NUM if "positive" in name else NEG_SAMPLE_NUM for name in image_files]
+        val_aug_nums = [5] * len(image_files)
+        for aug_images, aug_masks in executor.map(transform, image_files, mask_files, val_aug_nums):
             aug_image_list.extend(aug_images)
             aug_mask_list.extend(aug_masks)
 

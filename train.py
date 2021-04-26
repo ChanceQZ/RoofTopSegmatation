@@ -10,6 +10,7 @@
 import os
 import utils
 import time
+import math
 import numpy as np
 import tqdm
 import torch
@@ -65,7 +66,7 @@ def train(model, train_loader, valid_loader):
         epoch_losses = []
         start_time = time.time()
         model.train()
-        for idx, (image, target) in enumerate(train_loader):
+        for idx, (image, target) in tqdm.tqdm(enumerate(train_loader), total=iters):
             image, target = image.to(DEVICE), target.float().to(DEVICE)
             output = model(image)
             loss = loss_fn(output, target)
@@ -114,8 +115,10 @@ def validation(model, loader, loss_fn):
 
 
 def main():
-    image_folder, mask_folder = "./data/train/images", "./data/train/masks"
-    train_ds, valid_ds = get_train_valid_data(image_folder, mask_folder)
+    train_image_folder, train_mask_folder = "./data/train_transform/images", "./data/train_transform/masks"
+    valid_image_folder, valid_mask_folder = "./data/valid/images", "./data/valid/masks"
+    train_ds = get_train_valid_data(train_image_folder, train_mask_folder)
+    valid_ds = get_train_valid_data(valid_image_folder, valid_mask_folder)
     print("The image number of training: %d" % len(train_ds))
     print("The image number of validation: %d" % len(valid_ds))
 
