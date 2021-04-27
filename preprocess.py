@@ -76,7 +76,7 @@ def multi_processing_saveimg(
 
 
 if __name__ == "__main__":
-    POS_SAMPLE_NUM, NEG_SAMPLE_NUM = 120, 20
+    POS_SAMPLE_NUM, NEG_SAMPLE_NUM = 1000, 250
 
     src_image_path = "./data/train/images"
     src_mask_path = "./data/train/masks"
