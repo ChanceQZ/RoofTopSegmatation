@@ -1,0 +1,3 @@
+{
+  "checkpoint_1": "./model_weights/lr_0.001_old/best_model/best_model.pth"
+}
