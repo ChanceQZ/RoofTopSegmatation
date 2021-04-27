@@ -6,8 +6,10 @@
 @Description: 
 @Date: 2021/04/20
 """
+import psutil
 import numpy as np
 import cv2
+from multiprocessing import Pool, Manager, cpu_count
 
 
 def sliding(image, step_size, windows_size):
@@ -51,15 +53,29 @@ def load_img_mask(image_filename, mask_filename):
 def save_img(image_filename, img):
     cv2.imwrite(image_filename, img)
 
+def multi_processing_saveimg(
+        img_path_list: list,
+        img_list: list,
+        process_num: int = None
+) -> None:
+
+    if process_num is None:
+        process_num = cpu_count()
+
+    pool = Pool(process_num)
+    q = Manager().Queue()
+
+    for img_path, img in zip(img_path_list, img_list):
+        pool.apply_async(save_img, args=(img_path, img))
+        q.put(img_path)
+
+    pool.close()
+    pool.join()
+
+def get_memory_percent():
+    virtual_memory = psutil.virtual_memory()
+    memory_percent = virtual_memory.percent
+    return memory_percent
 
 if __name__ == "__main__":
-    import cv2
-    import matplotlib.pyplot as plt
-
-    img_path = "../data/train/images/negative_num3.png"
-    img = cv2.imread(img_path)
-    print(img.shape)
-    crop_img = next(sliding(img, 20, 1024))
-    print(crop_img.shape)
-    plt.imshow(crop_img[:, :, 0])
-    plt.show()
+    print(type(get_memory_percent()))

@@ -13,8 +13,7 @@ import time
 import numpy as np
 import albumentations as A
 import concurrent.futures
-from multiprocessing import Pool, Manager, cpu_count
-from utils import save_img
+from utils import multi_processing_saveimg
 
 IMAGE_SIZE = 256
 CROP_SIZE = 256
@@ -50,28 +49,6 @@ def transform(image_filename, mask_filename, augment_num):
     return aug_image_list, aug_mask_list
 
 
-def multi_processing_saveimg(
-        img_path_list: list,
-        img_list: list,
-        process_num: int = None
-) -> None:
-    start = time.time()
-
-    if process_num is None:
-        from multiprocessing import cpu_count
-        process_num = cpu_count()
-
-    pool = Pool(process_num)
-    q = Manager().Queue()
-
-    for img_path, img in zip(img_path_list, img_list):
-        pool.apply_async(save_img, args=(img_path, img))
-        q.put(img_path)
-
-    pool.close()
-    pool.join()
-
-
 if __name__ == "__main__":
     POS_SAMPLE_NUM, NEG_SAMPLE_NUM = 1000, 250
 
@@ -96,6 +73,6 @@ if __name__ == "__main__":
     image_path_list = [aug_image_path + "/%d.png" % idx for idx in range(len(aug_image_list))]
     mask_path_list = [aug_mask_path + "/%d.png" % idx for idx in range(len(aug_mask_list))]
 
-    multi_processing_saveimg(image_path_list, aug_image_list, cpu_count())
-    multi_processing_saveimg(mask_path_list, aug_mask_list, cpu_count())
+    multi_processing_saveimg(image_path_list, aug_image_list)
+    multi_processing_saveimg(mask_path_list, aug_mask_list)
     print("Total time cost %.f s" % (time.time() - start))
