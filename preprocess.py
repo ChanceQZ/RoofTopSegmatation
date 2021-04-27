@@ -14,6 +14,7 @@ import numpy as np
 import albumentations as A
 import concurrent.futures
 from multiprocessing import Pool, Manager, cpu_count
+from utils import save_img
 
 IMAGE_SIZE = 256
 CROP_SIZE = 256
@@ -47,10 +48,6 @@ def transform(image_filename, mask_filename, augment_num):
         aug_image_list.append(augments["image"])
         aug_mask_list.append(augments["mask"])
     return aug_image_list, aug_mask_list
-
-
-def save_img(image_filename, img):
-    cv2.imwrite(image_filename, img)
 
 
 def multi_processing_saveimg(

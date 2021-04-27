@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from roottop_dataset import get_test_data
 from deeplab_xception import DeepLabv3_plus
-from utils.utils import sliding
+from utils import sliding, fill_hole
 import torch.utils.data as D
 import torch.nn.functional as F
 from torchvision.utils import make_grid
@@ -69,7 +69,8 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
             ensemble_result = torch.mode(result_tensor, 0)[0].numpy()
         elif ensemble_mode == "union":
             ensemble_result = torch.any(result_tensor == 1, 0).numpy().astype(np.uint8)
-        # ensemble_result = np.where(ensemble_result == 1, 255, 0)
+
+        # ensemble_result = np.where(ensemble_result==1, 255, 0)
         cv2.imwrite("./data/test/ensemble_predict/%s" % img_name, ensemble_result)
         # print("./data/test/ensemble_predict/%s" % img_name)
 
@@ -98,5 +99,5 @@ if __name__ == "__main__":
     N_CLASS = 1
     OUTPUT_STRIDE = 16
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    DEVICE = "cpu"
+    # DEVICE = "cpu"
     main()

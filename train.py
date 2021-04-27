@@ -53,7 +53,7 @@ def train(model, train_loader, valid_loader):
                     {"params": get_10x_lr_params(model), "lr": LEARNING_RATE * 10}]
 
     optimizer = torch.optim.AdamW(train_params, lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=3, T_mult=2)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=2, T_mult=2)
     model = model.to(DEVICE)
     best_loss = 10
     print(header)
@@ -143,13 +143,13 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    CHECKPOINTS_SAVE_TIMES = 5  # frequncy of save checkpoints
+    CHECKPOINTS_SAVE_TIMES = 1  # frequncy of save checkpoints
 
     BATCH_SIZE = 16
-    EPOCHES = 100
+    EPOCHES = 120
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    LEARNING_RATE = 0.001
-    WEIGHT_DECAY = 0.001
+    LEARNING_RATE = 0.0005
+    WEIGHT_DECAY = 0.0005
 
     model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
 

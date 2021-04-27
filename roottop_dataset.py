@@ -14,6 +14,7 @@ import albumentations as A
 from torchvision import transforms as T
 import torch.utils.data as D
 import concurrent.futures
+from utils import load_img_mask, load_img
 
 IMAGE_SIZE = 256
 CROP_SIZE = 256
@@ -75,17 +76,6 @@ class RoofTopDataset(D.Dataset):
         Total number of samples in the dataset
         """
         return self.len
-
-
-def load_img_mask(image_filename, mask_filename):
-    image = cv2.imread(image_filename)
-    mask = cv2.imread(mask_filename, cv2.IMREAD_GRAYSCALE)
-    return image, mask
-
-
-def load_img(image_filename):
-    image = cv2.imread(image_filename)
-    return image
 
 
 def get_train_valid_data(image_folder, mask_folder):
