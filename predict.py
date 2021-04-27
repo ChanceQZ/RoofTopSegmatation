@@ -18,6 +18,8 @@ from utils import sliding, fill_hole
 import torch.utils.data as D
 import torch.nn.functional as F
 from torchvision.utils import make_grid
+from multiprocessing import cpu_count
+from utils import multi_processing_saveimg, get_memory_percent
 
 WINDOWS_SIZE = 256
 STEP_SIZE = 256
@@ -52,13 +54,10 @@ def predict_image(model, image):
     return pred_merge[:height, :width]
 
 
-def save_image():
-    pass
-
-
 @torch.no_grad()
 def ensemble_predict(models, loader, ensemble_mode="voting"):
-    for image, img_name in tqdm.tqdm(loader):
+    image_list, image_path_list = [], []
+    for image, image_name in tqdm.tqdm(loader):
         results = []
         for model in models:
             result = predict_image(model, image)
@@ -71,8 +70,16 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
             ensemble_result = torch.any(result_tensor == 1, 0).numpy().astype(np.uint8)
 
         # ensemble_result = np.where(ensemble_result==1, 255, 0)
-        cv2.imwrite("./data/test/ensemble_predict/%s" % img_name, ensemble_result)
+
+        # cv2.imwrite("./data/test/ensemble_predict/%s" % image_name, ensemble_result)
         # print("./data/test/ensemble_predict/%s" % img_name)
+        image_list.append(ensemble_result)
+        image_path_list.append("./data/test/ensemble_predict/%s" % image_name)
+
+        if get_memory_percent() > 90:
+            multi_processing_saveimg(image_path_list, image_list)
+            image_list, image_path_list = [], []
+    multi_processing_saveimg(image_path_list, image_list)
 
 
 def main():
@@ -94,7 +101,6 @@ def main():
 
 
 if __name__ == "__main__":
-
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
