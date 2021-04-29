@@ -16,9 +16,11 @@ def sliding(image, step_size, windows_size):
     for row in range(0, image.shape[-2], step_size):
         for col in range(0, image.shape[-1], step_size):
             if image.dim() == 4:
-                yield image[:, :, row:row + windows_size, col:col + windows_size]
+                crop_image = image[:, :, row:row + windows_size, col:col + windows_size]
             elif image.dim() == 3:
-                yield image[:, row:row + windows_size, col:col + windows_size]
+                crop_image = image[:, row:row + windows_size, col:col + windows_size]
+            if crop_image.shape[-2] == windows_size and crop_image.shape[-1] == windows_size:
+                yield crop_image
 
 
 def fill_hole(mask):
@@ -53,12 +55,12 @@ def load_img_mask(image_filename, mask_filename):
 def save_img(image_filename, img):
     cv2.imwrite(image_filename, img)
 
+
 def multi_processing_saveimg(
         img_path_list: list,
         img_list: list,
         process_num: int = None
 ) -> None:
-
     if process_num is None:
         process_num = cpu_count()
 
@@ -72,10 +74,23 @@ def multi_processing_saveimg(
     pool.close()
     pool.join()
 
+
 def get_memory_percent():
     virtual_memory = psutil.virtual_memory()
     memory_percent = virtual_memory.percent
     return memory_percent
 
+
 if __name__ == "__main__":
-    print(type(get_memory_percent()))
+    import torch
+    import torch.nn.functional as F
+
+    STEP_SIZE = 384
+    WINDOWS_SIZE = 384
+    image = torch.empty(3, 2432, 2432)
+    height, width = image.shape[-2], image.shape[-1]
+    h_padding = STEP_SIZE - (height - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+    w_padding = STEP_SIZE - (width - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+    padding_image = F.pad(image, (0, w_padding, 0, h_padding))
+    for idx, win in enumerate(sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)):
+        print("{} {}".format(idx, win.shape))

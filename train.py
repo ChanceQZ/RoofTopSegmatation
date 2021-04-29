@@ -17,7 +17,7 @@ import torch
 from torch import nn
 import torch.utils.data as D
 from roottop_dataset import get_train_valid_data
-from deeplab_xception import DeepLabv3_plus, get_1x_lr_params, get_10x_lr_params
+from deeplab_resnet import DeepLabv3_plus, get_1x_lr_params, get_10x_lr_params
 from utils.loss_func import SoftDiceLoss
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.tensorboard import SummaryWriter
@@ -94,7 +94,7 @@ def train(model, train_loader, valid_loader):
 
         if vloss < best_loss:
             best_loss = vloss
-            torch.save(model.state_dict(), os.path.join(model_svae_path, "best_model", "best_model.pth"))
+            torch.save(model.state_dict(), os.path.join(model_svae_path, "best_model", "best_model_256.pth"))
     save_loss(total_train_losses, total_valid_losses)
 
 

@@ -36,17 +36,26 @@ val_trfm = A.Compose([
 
 
 class RoofTopDataset(D.Dataset):
-    # def __init__(self, image_paths, mask_paths, transform=train_trfm, test_mode=False):
-    #     self.image_paths = image_paths
-    #     self.mask_paths = mask_paths
-    def __init__(self, image_list, mask_list=None, name_list=None, transform=None, test_mode=False):
+    def __init__(
+            self,
+            image_paths=None, mask_paths=None,
+            image_list=None, mask_list=None,
+            name_list=None,
+            transform=None,
+            test_mode=False
+    ):
+        self.image_paths = image_paths
+        self.mask_paths = mask_paths
         self.image_list = image_list
         self.mask_list = mask_list
         self.name_list = name_list
         self.transform = transform
         self.test_mode = test_mode
 
-        self.len = len(image_list)
+        if self.image_paths:
+            self.len = len(image_paths)
+        elif self.image_list:
+            self.len = len(image_list)
 
         self.as_tensor = T.Compose([
             T.ToTensor(),
@@ -56,11 +65,18 @@ class RoofTopDataset(D.Dataset):
 
     # get data operation
     def __getitem__(self, index):
-        # img = cv2.imread(self.image_paths[index])
-        img = self.image_list[index]
+
+        if self.image_paths:
+            img = cv2.imread(self.image_paths[index])
+        elif self.image_list:
+            img = self.image_list[index]
+
         if not self.test_mode:
-            # mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
-            mask = self.mask_list[index]
+
+            if self.image_paths:
+                mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+            elif self.image_list:
+                mask = self.mask_list[index]
 
             if self.transform is None:
                 return self.as_tensor(img), mask[None]
@@ -82,26 +98,26 @@ def get_train_valid_data(image_folder, mask_folder):
     image_list, mask_list = [], []
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        image_files = glob.glob(image_folder + "/*.png")
-        mask_files = glob.glob(mask_folder + "/*.png")
+        image_paths = glob.glob(image_folder + "/*.png")
+        mask_paths = glob.glob(mask_folder + "/*.png")
 
-        for images, masks in executor.map(load_img_mask, image_files, mask_files):
+        for images, masks in executor.map(load_img_mask, image_paths, mask_paths):
             image_list.append(images)
             mask_list.append(masks)
 
-    ds = RoofTopDataset(image_list, mask_list)
+    ds = RoofTopDataset(image_list=image_list, mask_list=mask_list)
 
     return ds
 
 
 def get_test_data(image_folder):
-    image_files = glob.glob(image_folder + "/*.png")
-    image_list = []
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        for image in executor.map(load_img, image_files):
-            image_list.append(image)
-    name_list = [os.path.basename(img) for img in image_files]
-    test_ds = RoofTopDataset(image_list, name_list=name_list, test_mode=True)
+    image_paths = glob.glob(image_folder + "/*.png")
+    # image_list = []
+    # with concurrent.futures.ProcessPoolExecutor() as executor:
+    #     for image in executor.map(load_img, image_paths):
+    #         image_list.append(image)
+    name_list = [os.path.basename(img) for img in image_paths]
+    test_ds = RoofTopDataset(image_paths=image_paths, name_list=name_list, test_mode=True)
 
     return test_ds
 
