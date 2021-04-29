@@ -21,12 +21,14 @@ from torchvision.utils import make_grid
 from multiprocessing import cpu_count
 from utils import multi_processing_saveimg, get_memory_percent
 
-WINDOWS_SIZE = 256
-STEP_SIZE = 256
-
+WINDOWS_SIZE = 384
+STEP_SIZE = 384
 
 @torch.no_grad()
-def predict_image(model, image):
+def predict_image(model, image, fix_flaw=False):
+    """
+    Prediction in sequence
+    """
     model = model.to(DEVICE)
     model.eval()
 
@@ -34,19 +36,37 @@ def predict_image(model, image):
 
     if image.dim() == 4:
         image = image.squeeze(0)
-    h_padding = STEP_SIZE - (height - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
-    w_padding = STEP_SIZE - (width - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
 
-    n_row = (height - WINDOWS_SIZE + h_padding + STEP_SIZE) // STEP_SIZE
+    if fix_flaw:
+        inner_windows_size = 256
+        inner_step_size = 256
 
-    padding_image = F.pad(image, (0, w_padding, 0, h_padding))
-    sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
+        h_padding = inner_step_size - (height - inner_windows_size + inner_step_size) % inner_step_size
+        w_padding = inner_step_size - (width - inner_windows_size + inner_step_size) % inner_step_size
+
+        n_row = (height - inner_windows_size + h_padding + inner_step_size) // inner_step_size
+
+        del_padding = (WINDOWS_SIZE - inner_windows_size) // 2
+        padding_image = F.pad(image, (0, w_padding, 0, h_padding))
+        padding_image = F.pad(padding_image, tuple([del_padding] * 4))
+        sliding_generator = sliding(padding_image, STEP_SIZE - del_padding * 2, WINDOWS_SIZE)
+    else:
+        h_padding = STEP_SIZE - (height - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+        w_padding = STEP_SIZE - (width - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
+
+        n_row = (height - WINDOWS_SIZE + h_padding + STEP_SIZE) // STEP_SIZE
+
+        padding_image = F.pad(image, (0, w_padding, 0, h_padding))
+        sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
     win_stack = torch.stack([win for win in sliding_generator], 0)
     # TODO: May overflow GPU memory
     # model(win_stack.to(DEVICE)).shape == (num, 1, WINDOWS_SIZE, WINDOWS_SIZE)
     pred = model(win_stack.to(DEVICE)).sigmoid().cpu()
     pred = (pred > 0.5).type(torch.uint8)
-    # TODO: Only support WINDOWS_SIZE==STEP_SIZE
+
+    if fix_flaw:
+        pred = pred[:, :, del_padding:-del_padding, del_padding:-del_padding]
+
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
 
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
@@ -60,7 +80,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
     for image, image_name in tqdm.tqdm(loader):
         results = []
         for model in models:
-            result = predict_image(model, image)
+            result = predict_image(model, image, True)
             results.append(result)
         result_tensor = torch.stack(results, 0)
         ensemble_result = None
@@ -69,17 +89,18 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
         elif ensemble_mode == "union":
             ensemble_result = torch.any(result_tensor == 1, 0).numpy().astype(np.uint8)
 
-        # ensemble_result = np.where(ensemble_result==1, 255, 0)
+        ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
-        # cv2.imwrite("./data/test/ensemble_predict/%s" % image_name, ensemble_result)
+        cv2.imwrite("./data/test/ensemble_predict/%s" % image_name, ensemble_result)
+        break
         # print("./data/test/ensemble_predict/%s" % img_name)
-        image_list.append(ensemble_result)
-        image_path_list.append("./data/test/ensemble_predict/%s" % image_name)
-
-        if get_memory_percent() > 90:
-            multi_processing_saveimg(image_path_list, image_list)
-            image_list, image_path_list = [], []
-    multi_processing_saveimg(image_path_list, image_list)
+    #     image_list.append(ensemble_result)
+    #     image_path_list.append("./data/test/ensemble_predict/%s" % image_name)
+    #
+    #     if get_memory_percent() > 90:
+    #         multi_processing_saveimg(image_path_list, image_list)
+    #         image_list, image_path_list = [], []
+    # multi_processing_saveimg(image_path_list, image_list)
 
 
 def main():
@@ -90,12 +111,23 @@ def main():
 
     models = []
     for weight in weights.values():
-        model = DeepLabv3_plus(N_INPUTCHANNELS, N_CLASS, OUTPUT_STRIDE, pretrained=False, _print=False)
+        model = DeepLabv3_plus(
+            N_INPUTCHANNELS,
+            N_CLASS,
+            OUTPUT_STRIDE,
+            pretrained=False,
+            _print=False
+        )
         model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
         models.append(model)
 
     test_ds = get_test_data("./data/test/images")
-    test_loader = D.DataLoader(test_ds, batch_size=1, shuffle=False)
+    test_loader = D.DataLoader(
+        test_ds,
+        batch_size=1,
+        shuffle=False,
+        num_workers=cpu_count()
+    )
 
     ensemble_predict(models, test_loader, ensemble_mode="union")
 
