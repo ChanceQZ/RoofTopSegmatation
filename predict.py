@@ -70,7 +70,7 @@ def predict_image(model, image, fix_flaw=False):
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
 
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
-
+    torch.cuda.empty_cache()
     return pred_merge[:height, :width]
 
 
