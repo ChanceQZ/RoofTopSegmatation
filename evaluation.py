@@ -15,32 +15,37 @@ import numpy as np
 import concurrent.futures
 from utils import load_mask
 from sklearn.metrics import confusion_matrix
-import numba as nb
+
+
+def confusion_mat_eval(truth_image, pred_image):
+    truth = truth_image.reshape((-1)).tolist()
+    predict = pred_image.reshape((-1)).tolist()
+    con_mat = confusion_matrix(truth, predict)
+
+    try:
+        TN, FP, FN, TP = con_mat.ravel()
+    except:
+        TN = con_mat.ravel()[0]
+        FP, FN, TP = 0, 0, 0
+
+    return TN, FP, FN, TP
 
 
 def evaluate(truth_image_list, pred_image_list):
-    acc_list, pre_list, recall_list, f1_list = [], [], [], []
     TN_total, FP_total, FN_total, TP_total = 0, 0, 0, 0
-    for truth_image, pred_image in tqdm(zip(truth_image_list, pred_image_list), total=len(truth_image_list)):
-
-        truth = truth_image.reshape((-1)).tolist()
-        predict = pred_image.reshape((-1)).tolist()
-        con_mat = confusion_matrix(truth, predict)
-
-        try:
-            TN, FP, FN, TP = con_mat.ravel()
-        except:
-            TN = con_mat.ravel()[0]
-            FP, FN, TP = 0, 0, 0
-
-        TN_total += TN
-        FP_total += FP
-        FN_total += FN
-        TP_total += TP
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        for TN, FP, FN, TP in tqdm(executor.map(confusion_mat_eval,
+                                                truth_image_list,
+                                                pred_image_list),
+                                   total=len(truth_image_list)):
+            TN_total += TN
+            FP_total += FP
+            FN_total += FN
+            TP_total += TP
 
     print()
     accuracy = (TP_total + TN_total) / (TP_total + TN_total + FP_total + FN_total)
-    specificity = TN_total / (TN_total + FP_total)
+    # specificity = TN_total / (TN_total + FP_total)
     precision = TP_total / (TP_total + FP_total)
     recall = TP_total / (TP_total + FN_total)
     f1 = (2 * precision * recall) / (precision + recall)
@@ -54,7 +59,7 @@ def evaluate(truth_image_list, pred_image_list):
 
 def main():
     truth_folder = "./data/test/masks"
-    pred_floder = "./data/test/postprocess"
+    pred_floder = "./data/test/ensemble_predict"
     truth_path_list = glob.glob(truth_folder + "/*.png")
     pred_path_list = glob.glob(pred_floder + "/*.png")
 
