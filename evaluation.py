@@ -57,7 +57,7 @@ def evaluate(truth_image_list, pred_image_list):
     print("total_fmeasure: %f" % f1)
 
 
-def main():
+def eval_main():
     truth_folder = "./data/test/masks"
     pred_floder = "./data/test/ensemble_predict"
     truth_path_list = glob.glob(truth_folder + "/*.png")
@@ -76,4 +76,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    eval_main()

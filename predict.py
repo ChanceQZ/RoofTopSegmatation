@@ -92,7 +92,6 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
         ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
         cv2.imwrite("./data/test/ensemble_predict/%s" % image_name, ensemble_result)
-        break
         # print("./data/test/ensemble_predict/%s" % img_name)
     #     image_list.append(ensemble_result)
     #     image_path_list.append("./data/test/ensemble_predict/%s" % image_name)
@@ -103,7 +102,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
     # multi_processing_saveimg(image_path_list, image_list)
 
 
-def main():
+def pred_main():
     import json
     ensamble_config = "ensemble_config.json"
     with open(ensamble_config) as f:
@@ -138,4 +137,4 @@ if __name__ == "__main__":
     OUTPUT_STRIDE = 16
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     # DEVICE = "cpu"
-    main()
+    pred_main()
