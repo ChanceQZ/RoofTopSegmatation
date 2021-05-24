@@ -8,9 +8,8 @@
 """
 
 import os
-import utils
 import time
-import math
+import datetime
 import numpy as np
 import tqdm
 import torch
@@ -32,6 +31,22 @@ raw_line = "{:6d}" + "\u2502{:7.3f}" * 2 + "\u2502{:6.2f}"
 bce_fn = nn.BCEWithLogitsLoss()
 dice_fn = SoftDiceLoss()
 
+N_INPUTCHANNELS = 3
+N_CLASS = 1
+OUTPUT_STRIDE = 16
+CHECKPOINTS_SAVE_TIMES = 1  # frequncy of save checkpoints
+
+BATCH_SIZE = 64
+EPOCHES = 300
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+LEARNING_RATE = 0.005
+WEIGHT_DECAY = 0.0005
+
+model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
+
+log_folder = "./logs/%s" % (datetime.date.today().strftime('%y-%m-%d'))
+writer = SummaryWriter(log_dir=log_folder, flush_secs=60)
+
 
 def loss_fn(y_pred, y_true):
     bce = bce_fn(y_pred, y_true)
@@ -49,12 +64,21 @@ def save_loss(total_train_losses, total_valid_losses):
 
 
 def train(model, train_loader, valid_loader):
+    torch.distributed.init_process_group(backend="nccl")
+    local_rank = torch.distributed.get_rank()
+
     train_params = [{"params": get_1x_lr_params(model), "lr": LEARNING_RATE},
                     {"params": get_10x_lr_params(model), "lr": LEARNING_RATE * 10}]
 
     optimizer = torch.optim.AdamW(train_params, lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=2, T_mult=2)
     model = model.to(DEVICE)
+
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # 就这一行
+        model = nn.DataParallel(model)
+
     best_loss = 10
     print(header)
     total_train_losses, total_valid_losses = [], []
@@ -75,7 +99,7 @@ def train(model, train_loader, valid_loader):
 
             epoch_losses.append(loss.item())
             # print(loss.item())
-            writer.add_scalar("Train_loss", loss.item(), (epoch*iters + idx))
+            writer.add_scalar("Train_loss", loss.item(), (epoch * iters + idx))
 
         vloss = validation(model, valid_loader, loss_fn)
         print(raw_line.format(epoch, np.array(epoch_losses).mean(), vloss,
@@ -83,7 +107,6 @@ def train(model, train_loader, valid_loader):
 
         total_train_losses.append(np.array(epoch_losses).mean())
         total_valid_losses.append(vloss)
-
 
         writer.add_scalar("Valid_loss", total_valid_losses[-1], epoch)
 
@@ -140,20 +163,4 @@ def main():
 
 
 if __name__ == "__main__":
-    N_INPUTCHANNELS = 3
-    N_CLASS = 1
-    OUTPUT_STRIDE = 16
-    CHECKPOINTS_SAVE_TIMES = 1  # frequncy of save checkpoints
-
-    BATCH_SIZE = 16
-    EPOCHES = 120
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    LEARNING_RATE = 0.0005
-    WEIGHT_DECAY = 0.0005
-
-    model_svae_path = "./model_weights/lr_{}".format(LEARNING_RATE)
-
-    import datetime
-    log_folder = "./logs/%s" % (datetime.date.today().strftime('%y-%m-%d'))
-    writer = SummaryWriter(log_dir=log_folder, flush_secs=60)
     main()

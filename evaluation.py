@@ -50,17 +50,17 @@ def evaluate(truth_image_list, pred_image_list):
     recall = TP_total / (TP_total + FN_total)
     f1 = (2 * precision * recall) / (precision + recall)
 
-    # print("toatl_accuracy: %f" % accuracy)
-    # print("total_precision: %f" % precision)
-    # print("total_recall: %f" % recall)
-    # # print("total_specificity: %f" %specificity)
-    # print("total_fmeasure: %f" % f1)
+    print("toatl_accuracy: %f" % accuracy)
+    print("total_precision: %f" % precision)
+    print("total_recall: %f" % recall)
+    # print("total_specificity: %f" %specificity)
+    print("total_fmeasure: %f" % f1)
     return accuracy, precision, recall, f1
 
 
 def eval_main():
-    truth_folder = "./data/test/masks"
-    pred_floder = "./data/test/vote_ensemble_predict"
+    truth_folder = "/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/labels"
+    pred_floder = "/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/predict"
     truth_path_list = glob.glob(truth_folder + "/*.png")
     pred_path_list = glob.glob(pred_floder + "/*.png")
 

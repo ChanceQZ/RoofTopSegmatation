@@ -12,6 +12,7 @@ import cv2
 from multiprocessing import Pool, Manager, cpu_count
 
 
+
 def sliding(image, step_size, windows_size):
     for row in range(0, image.shape[-2], step_size):
         for col in range(0, image.shape[-1], step_size):
@@ -79,6 +80,7 @@ def get_memory_percent():
     virtual_memory = psutil.virtual_memory()
     memory_percent = virtual_memory.percent
     return memory_percent
+
 
 
 if __name__ == "__main__":

@@ -33,8 +33,6 @@ def predict_image(model, image, fix_flaw=False):
     """
     Prediction in sequence
     """
-    model = model.to(DEVICE)
-    model.eval()
 
     height, width = image.shape[-2], image.shape[-1]
 
@@ -95,7 +93,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
 
         ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
-        cv2.imwrite("./data/test/vote_ensemble_predict/%s" % image_name, ensemble_result)
+        cv2.imwrite("/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/predict/%s" % image_name, ensemble_result)
         # print("./data/test/union_ensemble_predict/%s" % img_name)
     #     image_list.append(ensemble_result)
     #     image_path_list.append("./data/test/union_ensemble_predict/%s" % image_name)
@@ -121,10 +119,13 @@ def pred_main():
             pretrained=False,
             _print=False
         )
+        model = model.to(DEVICE)
+        model.eval()
+        model = torch.nn.DataParallel(model)
         model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
         models.append(model)
 
-    test_ds = get_test_data("./data/test/images")
+    test_ds = get_test_data("/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/images")
     test_loader = D.DataLoader(
         test_ds,
         batch_size=1,

@@ -1,5 +1,3 @@
 {
-  "checkpoint_1": "./model_weights/lr_0.005/models/epoch_106_trainloss_0.0566_validloss_0.0626.pth",
-  "checkpoint_2": "./model_weights/lr_0.005/models/epoch_109_trainloss_0.0523_validloss_0.0587.pth",
-  "checkpoint_3": "./model_weights/lr_0.005/models/epoch_103_trainloss_0.0618_validloss_0.0605.pth"
+  "checkpoint_1": "/home/chance/Desktop/best_model.pth"
 }
