@@ -20,6 +20,8 @@ import torch.nn.functional as F
 from torchvision.utils import make_grid
 from multiprocessing import cpu_count
 from utils import multi_processing_saveimg, get_memory_percent
+from torch2trt import torch2trt
+from collections import OrderedDict
 
 WINDOWS_SIZE = 384
 STEP_SIZE = 384
@@ -33,7 +35,6 @@ def predict_image(model, image, fix_flaw=False):
     """
     Prediction in sequence
     """
-
     height, width = image.shape[-2], image.shape[-1]
 
     if image.dim() == 4:
@@ -60,10 +61,14 @@ def predict_image(model, image, fix_flaw=False):
 
         padding_image = F.pad(image, (0, w_padding, 0, h_padding))
         sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
-    win_stack = torch.stack([win for win in sliding_generator], 0)
-    # TODO: May overflow GPU memory
-    # model(win_stack.to(DEVICE)).shape == (num, 1, WINDOWS_SIZE, WINDOWS_SIZE)
-    pred = model(win_stack.to(DEVICE)).sigmoid().cpu()
+
+    pred_wins = []
+    for win in sliding_generator:
+        pred_win = model(win.unsqueeze(0).to(DEVICE)).sigmoid().cpu()
+        pred_wins.append(pred_win.squeeze(0))
+    pred = torch.stack(pred_wins, 0)
+
+
     pred = (pred > 0.5).type(torch.uint8)
 
     if fix_flaw:
@@ -72,7 +77,7 @@ def predict_image(model, image, fix_flaw=False):
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
     torch.cuda.empty_cache()
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
-    torch.cuda.empty_cache()
+
     return pred_merge[:height, :width]
 
 
@@ -82,7 +87,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
     for image, image_name in tqdm.tqdm(loader):
         results = []
         for model in models:
-            result = predict_image(model, image, True)
+            result = predict_image(model, image, fix_flaw=True)
             results.append(result)
         result_tensor = torch.stack(results, 0)
         ensemble_result = None
@@ -119,11 +124,20 @@ def pred_main():
             pretrained=False,
             _print=False
         )
+
+        state_dict = torch.load(weight, map_location=torch.device(DEVICE))
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            name = k[7:]
+            new_state_dict[name] = v
+        model.load_state_dict(new_state_dict)
+
         model = model.to(DEVICE)
         model.eval()
-        model = torch.nn.DataParallel(model)
-        model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
-        models.append(model)
+        input_data = torch.rand(1, 3, 384, 384).cuda()
+        model_trt = torch2trt(model, [input_data], fp16_mode=True)
+
+        models.append(model_trt)
 
     test_ds = get_test_data("/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/images")
     test_loader = D.DataLoader(
