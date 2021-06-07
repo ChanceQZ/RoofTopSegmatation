@@ -7,26 +7,19 @@
 @Date: 4/20/2021
 """
 
-import utils
 import tqdm
 import cv2
 import numpy as np
 import torch
 from roottop_dataset import get_test_data
 from deeplab_xception import DeepLabv3_plus
-from utils import sliding, fill_hole
+from utils import sliding
 import torch.utils.data as D
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 from multiprocessing import cpu_count
-from utils import multi_processing_saveimg, get_memory_percent
+import argparse
 
-WINDOWS_SIZE = 384
-STEP_SIZE = 384
-N_INPUTCHANNELS = 3
-N_CLASS = 1
-OUTPUT_STRIDE = 16
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 @torch.no_grad()
 def predict_image(model, image, fix_flaw=False):
@@ -70,9 +63,9 @@ def predict_image(model, image, fix_flaw=False):
         pred = pred[:, :, del_padding:-del_padding, del_padding:-del_padding]
 
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
-    torch.cuda.empty_cache()
+    if DEVICE == "cuda":
+        torch.cuda.empty_cache()
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
-    torch.cuda.empty_cache()
     return pred_merge[:height, :width]
 
 
@@ -137,5 +130,12 @@ def pred_main():
 
 
 if __name__ == "__main__":
-    # DEVICE = "cpu"
+
+    WINDOWS_SIZE = 384
+    STEP_SIZE = 384
+    N_INPUTCHANNELS = 3
+    N_CLASS = 1
+    OUTPUT_STRIDE = 16
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
     pred_main()
