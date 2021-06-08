@@ -7,6 +7,7 @@
 @Date: 4/20/2021
 """
 
+import os
 import tqdm
 import cv2
 import numpy as np
@@ -86,15 +87,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
 
         ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
-        cv2.imwrite("/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/predict/%s" % image_name, ensemble_result)
-        # print("./data/test/union_ensemble_predict/%s" % img_name)
-    #     image_list.append(ensemble_result)
-    #     image_path_list.append("./data/test/union_ensemble_predict/%s" % image_name)
-    #
-    #     if get_memory_percent() > 90:
-    #         multi_processing_saveimg(image_path_list, image_list)
-    #         image_list, image_path_list = [], []
-    # multi_processing_saveimg(image_path_list, image_list)
+        cv2.imwrite(os.path.join(args.output_folder, image_name[0]), ensemble_result)
 
 
 def pred_main():
@@ -118,7 +111,7 @@ def pred_main():
         model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
         models.append(model)
 
-    test_ds = get_test_data("/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/images")
+    test_ds = get_test_data(args.input_folder)
     test_loader = D.DataLoader(
         test_ds,
         batch_size=1,
@@ -126,16 +119,26 @@ def pred_main():
         num_workers=cpu_count()
     )
 
-    ensemble_predict(models, test_loader, ensemble_mode="voting")
+    ensemble_predict(models, test_loader, ensemble_mode="union")
 
 
 if __name__ == "__main__":
-
     WINDOWS_SIZE = 384
     STEP_SIZE = 384
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+
+    parser = argparse.ArgumentParser()
+    parser.description = 'please enter two parameters a and b ...'
+    parser.add_argument("--input_folder", help="input folder path", type=str, default="test_input_folder")
+    parser.add_argument("--output_folder", help="output folder path", type=str, default="test_output_folder")
+    parser.add_argument("--device", help="device", type=str, default="")
+    args = parser.parse_args()
+
+    if args.device == "":
+        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        DEVICE = args.device
     pred_main()

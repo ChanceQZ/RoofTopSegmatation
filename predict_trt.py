@@ -4,11 +4,10 @@
 @File: predict.py
 @Author: Chance (Qian Zhen)
 @Description: 
-@Date: 4/20/2021
+@Date: 5/20/2021
 """
 
 import os
-import utils
 import tqdm
 import cv2
 import numpy as np
@@ -20,11 +19,9 @@ import torch.utils.data as D
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 from multiprocessing import cpu_count
-from utils import multi_processing_saveimg, get_memory_percent
 from torch2trt import torch2trt
 from collections import OrderedDict
 import argparse
-
 
 
 @torch.no_grad()
@@ -65,14 +62,13 @@ def predict_image(model, image, fix_flaw=False):
         pred_wins.append(pred_win.squeeze(0))
     pred = torch.stack(pred_wins, 0)
 
-
     pred = (pred > 0.5).type(torch.uint8)
 
     if fix_flaw:
         pred = pred[:, :, del_padding:-del_padding, del_padding:-del_padding]
 
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
-    if DEVICE == "cuda":
+    if "cuda" in DEVICE:
         torch.cuda.empty_cache()
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
 
@@ -96,15 +92,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
 
         ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
-        cv2.imwrite(os.path.join(args.output_folder, image_name), ensemble_result)
-        # print("./data/test/union_ensemble_predict/%s" % img_name)
-    #     image_list.append(ensemble_result)
-    #     image_path_list.append("./data/test/union_ensemble_predict/%s" % image_name)
-    #
-    #     if get_memory_percent() > 90:
-    #         multi_processing_saveimg(image_path_list, image_list)
-    #         image_list, image_path_list = [], []
-    # multi_processing_saveimg(image_path_list, image_list)
+        cv2.imwrite(os.path.join(args.output_folder, image_name[0]), ensemble_result)
 
 
 def pred_main():
@@ -145,7 +133,7 @@ def pred_main():
         num_workers=cpu_count()
     )
 
-    ensemble_predict(models, test_loader, ensemble_mode="voting")
+    ensemble_predict(models, test_loader, ensemble_mode="union")
 
 
 if __name__ == "__main__":
@@ -154,12 +142,16 @@ if __name__ == "__main__":
     N_INPUTCHANNELS = 3
     N_CLASS = 1
     OUTPUT_STRIDE = 16
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     parser = argparse.ArgumentParser()
     parser.description = 'please enter two parameters a and b ...'
-    parser.add_argument("--input_folder", help="this is parameter a", type=str, default="test_input_folder")
-    parser.add_argument("--output_folder", help="this is parameter b", type=str, default="test_output_folder")
+    parser.add_argument("--input_folder", help="input folder path", type=str, default="test_input_folder")
+    parser.add_argument("--output_folder", help="output folder path", type=str, default="test_output_folder")
+    parser.add_argument("--device", help="device", type=str, default="")
     args = parser.parse_args()
 
+    if args.device == "":
+        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        DEVICE = args.device
     pred_main()
