@@ -154,4 +154,8 @@ if __name__ == "__main__":
         DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     else:
         DEVICE = args.device
+
+    if not os.path.exists(args.output_folder):
+        os.makedirs(args.output_folder)
+
     pred_main()
