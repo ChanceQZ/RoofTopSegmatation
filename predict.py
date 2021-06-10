@@ -54,17 +54,22 @@ def predict_image(model, image, fix_flaw=False):
 
         padding_image = F.pad(image, (0, w_padding, 0, h_padding))
         sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
-    win_stack = torch.stack([win for win in sliding_generator], 0)
-    # TODO: May overflow GPU memory
-    # model(win_stack.to(DEVICE)).shape == (num, 1, WINDOWS_SIZE, WINDOWS_SIZE)
-    pred = model(win_stack.to(DEVICE)).sigmoid().cpu()
+    # win_stack = torch.stack([win for win in sliding_generator], 0)
+    # pred = model(win_stack.to(DEVICE)).sigmoid().cpu()
+
+    pred_wins = []
+    for win in sliding_generator:
+        pred_win = model(win.unsqueeze(0).to(DEVICE)).sigmoid().cpu()
+        pred_wins.append(pred_win.squeeze(0))
+    pred = torch.stack(pred_wins, 0)
+
     pred = (pred > 0.5).type(torch.uint8)
 
     if fix_flaw:
         pred = pred[:, :, del_padding:-del_padding, del_padding:-del_padding]
 
     pred_merge = make_grid(pred, nrow=n_row, padding=0)[0]
-    if DEVICE == "cuda":
+    if "cuda" in DEVICE:
         torch.cuda.empty_cache()
     assert pred_merge.dim() == 2, "dimension of pred_merge is error"
     return pred_merge[:height, :width]
@@ -73,7 +78,7 @@ def predict_image(model, image, fix_flaw=False):
 @torch.no_grad()
 def ensemble_predict(models, loader, ensemble_mode="voting"):
     image_list, image_path_list = [], []
-    for image, image_name in tqdm.tqdm(loader):
+    for image, output_path in tqdm.tqdm(loader):
         results = []
         for model in models:
             result = predict_image(model, image, True)
@@ -87,7 +92,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
 
         ensemble_result = np.where(ensemble_result == 1, 255, 0)
 
-        cv2.imwrite(os.path.join(args.output_folder, image_name[0]), ensemble_result)
+        cv2.imwrite(output_path[0], ensemble_result)
 
 
 def pred_main():
@@ -111,12 +116,30 @@ def pred_main():
         model.load_state_dict(torch.load(weight, map_location=torch.device(DEVICE)))
         models.append(model)
 
-    test_ds = get_test_data(args.input_folder)
+    if args.batch_folder is None:
+        input_folder_list = args.input_folder.split(",")
+        output_folder_list = args.output_folder.split(",")
+    else:
+        input_folder_list, output_folder_list = [], []
+        with open(args.batch_folder) as f:
+            for row in f.readlines():
+                row = row.strip()
+                input_folder_list.append(row.split(",")[0])
+                output_folder_list.append(row.split(",")[1])
+
+    ds_list = []
+    for input_folder, output_folder in zip(input_folder_list, output_folder_list):
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        ds = get_test_data(input_folder, output_folder)
+        ds_list.append(ds)
+    test_ds = D.ConcatDataset(ds_list)
+
     test_loader = D.DataLoader(
         test_ds,
         batch_size=1,
         shuffle=False,
-        num_workers=cpu_count()
+        num_workers=0
     )
 
     ensemble_predict(models, test_loader, ensemble_mode="union")
@@ -129,11 +152,11 @@ if __name__ == "__main__":
     N_CLASS = 1
     OUTPUT_STRIDE = 16
 
-
     parser = argparse.ArgumentParser()
     parser.description = 'please enter two parameters a and b ...'
     parser.add_argument("--input_folder", help="input folder path", type=str, default="test_input_folder")
     parser.add_argument("--output_folder", help="output folder path", type=str, default="test_output_folder")
+    parser.add_argument("--batch_folder", help="batch folder path", type=str, default=None)
     parser.add_argument("--device", help="device", type=str, default="")
     args = parser.parse_args()
 
@@ -142,7 +165,5 @@ if __name__ == "__main__":
     else:
         DEVICE = args.device
 
-    if not os.path.exists(args.output_folder):
-        os.makedirs(args.output_folder)
 
     pred_main()

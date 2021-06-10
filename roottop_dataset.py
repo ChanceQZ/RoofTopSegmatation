@@ -110,13 +110,15 @@ def get_train_valid_data(image_folder, mask_folder):
     return ds
 
 
-def get_test_data(image_folder):
+def get_test_data(image_folder, output_folder=None):
     image_paths = glob.glob(image_folder + "/*.png")
     # image_list = []
     # with concurrent.futures.ProcessPoolExecutor() as executor:
     #     for image in executor.map(load_img, image_paths):
     #         image_list.append(image)
     name_list = [os.path.basename(img) for img in image_paths]
+    if output_folder:
+        name_list = [os.path.join(output_folder, img_name) for img_name in name_list]
     test_ds = RoofTopDataset(image_paths=image_paths, name_list=name_list, test_mode=True)
 
     return test_ds
