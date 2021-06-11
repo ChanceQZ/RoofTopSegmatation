@@ -77,8 +77,11 @@ def predict_image(model, image, fix_flaw=False):
 
 @torch.no_grad()
 def ensemble_predict(models, loader, ensemble_mode="voting"):
-    image_list, image_path_list = [], []
     for image, output_path in tqdm.tqdm(loader):
+        if np.all(image.numpy() == 0):
+            cv2.imwrite(output_path[0], np.zeros(image.numpy().shape[-2:]))
+            continue
+
         results = []
         for model in models:
             result = predict_image(model, image, fix_flaw=True)
