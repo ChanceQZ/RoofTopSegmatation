@@ -123,11 +123,10 @@ def pred_main():
 
         model = model.to(DEVICE)
         model.eval()
-        input_data = torch.rand(1, 3, 384, 384).cuda()
+        input_data = torch.rand(1, 3, 384, 384).to(DEVICE)
         model_trt = torch2trt(model, [input_data], fp16_mode=True)
 
         models.append(model_trt)
-
 
     if args.batch_folder is None:
         input_folder_list = args.input_folder.split(",")
@@ -173,11 +172,14 @@ if __name__ == "__main__":
     parser.add_argument("--device", help="device", type=str, default="")
     args = parser.parse_args()
 
-    if args.device == "":
-        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    else:
-        DEVICE = args.device
+    # if args.device == "":
+    #     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    # else:
+    #     DEVICE = args.device
 
-
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    if args.device != "":
+        gpu_idx = int(args.device.split(":")[1])
+        torch.cuda.set_device(gpu_idx)
 
     pred_main()

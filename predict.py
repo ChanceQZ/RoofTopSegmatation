@@ -163,10 +163,14 @@ if __name__ == "__main__":
     parser.add_argument("--device", help="device", type=str, default="")
     args = parser.parse_args()
 
-    if args.device == "":
-        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    else:
-        DEVICE = args.device
+    # if args.device == "":
+    #     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    # else:
+    #     DEVICE = args.device
 
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    if args.device != "":
+        gpu_idx = int(args.device.split(":")[1])
+        torch.cuda.set_device(gpu_idx)
 
     pred_main()
