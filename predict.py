@@ -40,7 +40,7 @@ def predict_image(model, image, fix_flaw=False):
         h_padding = inner_step_size - (height - inner_windows_size + inner_step_size) % inner_step_size
         w_padding = inner_step_size - (width - inner_windows_size + inner_step_size) % inner_step_size
 
-        n_row = (height - inner_windows_size + h_padding + inner_step_size) // inner_step_size
+        rows = (height - inner_windows_size + h_padding + inner_step_size) // inner_step_size
 
         del_padding = (WINDOWS_SIZE - inner_windows_size) // 2
         padding_image = F.pad(image, (0, w_padding, 0, h_padding))
@@ -61,6 +61,8 @@ def predict_image(model, image, fix_flaw=False):
     for win in sliding_generator:
         pred_win = model(win.unsqueeze(0).to(DEVICE)).sigmoid().cpu()
         pred_wins.append(pred_win.squeeze(0))
+
+    n_row = len(pred_wins) // rows
     pred = torch.stack(pred_wins, 0)
 
     pred = (pred > 0.5).type(torch.uint8)

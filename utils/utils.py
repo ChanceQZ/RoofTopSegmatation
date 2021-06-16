@@ -6,11 +6,11 @@
 @Description: 
 @Date: 2021/04/20
 """
+import torch
 import psutil
 import numpy as np
 import cv2
 from multiprocessing import Pool, Manager, cpu_count
-
 
 
 def sliding(image, step_size, windows_size):
@@ -80,7 +80,6 @@ def get_memory_percent():
     virtual_memory = psutil.virtual_memory()
     memory_percent = virtual_memory.percent
     return memory_percent
-
 
 
 if __name__ == "__main__":
