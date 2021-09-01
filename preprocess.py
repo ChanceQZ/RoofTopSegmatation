@@ -15,8 +15,8 @@ import albumentations as A
 import concurrent.futures
 from utils import multi_processing_saveimg
 
-IMAGE_SIZE = 256
-CROP_SIZE = 256
+IMAGE_SIZE = 384
+CROP_SIZE = 384
 AUGMENT_NUM = 50
 
 train_trfm = A.Compose([

@@ -12,7 +12,7 @@ import tqdm
 import cv2
 import numpy as np
 import torch
-from roottop_dataset import get_test_data
+from rooftop_dataset import get_test_data
 from deeplab_xception import DeepLabv3_plus
 from utils import sliding
 import torch.utils.data as D
@@ -50,7 +50,7 @@ def predict_image(model, image, fix_flaw=False):
         h_padding = STEP_SIZE - (height - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
         w_padding = STEP_SIZE - (width - WINDOWS_SIZE + STEP_SIZE) % STEP_SIZE
 
-        n_row = (height - WINDOWS_SIZE + h_padding + STEP_SIZE) // STEP_SIZE
+        rows = (height - WINDOWS_SIZE + h_padding + STEP_SIZE) // STEP_SIZE
 
         padding_image = F.pad(image, (0, w_padding, 0, h_padding))
         sliding_generator = sliding(padding_image, STEP_SIZE, WINDOWS_SIZE)
@@ -86,7 +86,7 @@ def ensemble_predict(models, loader, ensemble_mode="voting"):
 
         results = []
         for model in models:
-            result = predict_image(model, image, True)
+            result = predict_image(model, image, False)
             results.append(result)
         result_tensor = torch.stack(results, 0)
         ensemble_result = None
@@ -159,8 +159,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.description = 'please enter two parameters a and b ...'
-    parser.add_argument("--input_folder", help="input folder path", type=str, default="test_input_folder")
-    parser.add_argument("--output_folder", help="output folder path", type=str, default="test_output_folder")
+    parser.add_argument("--input_folder", help="input folder path", type=str, default="data/test_180/images")
+    parser.add_argument("--output_folder", help="output folder path", type=str, default="data/test_180/predict_single")
     parser.add_argument("--batch_folder", help="batch folder path", type=str, default=None)
     parser.add_argument("--device", help="device", type=str, default="")
     args = parser.parse_args()

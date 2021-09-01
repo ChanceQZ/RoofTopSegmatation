@@ -1,3 +1,4 @@
 {
-  "checkpoint_1": "/home/chance/Desktop/best_model.pth"
+  "checkpoint_1": "./model_weights/lr0.01/epoch_55_trainloss_0.0524_validloss_0.0417.pth",
+  "checkpoint_2": "./model_weights/lr0.01/epoch_29_trainloss_0.0628_validloss_0.0496.pth"
 }

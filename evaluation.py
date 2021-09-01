@@ -44,6 +44,7 @@ def evaluate(truth_image_list, pred_image_list):
             TP_total += TP
 
     print()
+
     accuracy = (TP_total + TN_total) / (TP_total + TN_total + FP_total + FN_total)
     # specificity = TN_total / (TN_total + FP_total)
     precision = TP_total / (TP_total + FP_total)
@@ -59,21 +60,41 @@ def evaluate(truth_image_list, pred_image_list):
 
 
 def eval_main():
-    truth_folder = "/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/labels"
-    pred_floder = "/home/chance/Windows_Disks/G/RoofTopSegmatation/data/test_180/predict"
-    truth_path_list = glob.glob(truth_folder + "/*.png")
-    pred_path_list = glob.glob(pred_floder + "/*.png")
+    # truth_folder = "./data/test_180/labels"
+    # pred_floder = "./data/test_180/predict"
+    truth_folder = "/home/chance/Windows_Disks/G/Project/RooftopUnderstanding/Data/dataset/old/split/valid/mask_1"
+    pred_folder = "/home/chance/Windows_Disks/G/Project/RooftopUnderstanding/Data/dataset/old/split/valid/predict_DeeplabV3p_new"
+    # truth_path_list = glob.gloob(truth_folder + "/*.tif")
+    # pred_path_list = glob.glob(pred_floder + "/*.tif")
+
+    # truth_folder = "./data/test_180/labels"
+    # pred_folder = "./data/test_180/predict"
+    # truth_path_list = []
+    # pred_path_list = []
+    # for pred_path in glob.glob(pred_floder + "/*.tif"):
+    #     if os.path.exists(os.path.join(truth_folder, os.path.basename(pred_path))):
+    #         truth_path_list.append(os.path.join(truth_folder, os.path.basename(pred_path)))
+    #         pred_path_list.append(os.path.join(pred_floder, os.path.basename(pred_path)))
+    #
+
+    truth_path_list = sorted(glob.glob(truth_folder + "/*.png"))
+    pred_path_list = sorted(glob.glob(pred_folder + "/*.png"))
+    # truth_path_list = [truth_path for truth_path in truth_path_list if "lev1" in truth_path]
+    # pred_path_list = [pred_path for pred_path in pred_path_list if "lev1" in pred_path]
+
+
 
     truth_image_list, pred_image_list = [], []
-
     with concurrent.futures.ProcessPoolExecutor() as executor:
         for truth_image in executor.map(load_mask, truth_path_list):
+            # truth_image = np.where(truth_image == 1, 1, 0)
             truth_image_list.append(truth_image)
 
         for pred_image in executor.map(load_mask, pred_path_list):
             pred_image = np.where(pred_image == 255, 1, 0)
             pred_image_list.append(pred_image)
     return evaluate(truth_image_list, pred_image_list)
+
 
 
 if __name__ == "__main__":
