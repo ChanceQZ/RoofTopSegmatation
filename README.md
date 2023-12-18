@@ -10,7 +10,4 @@
 8. **deeplab_xception.py**: Deeplabv3+ model based on xception backbone.
 9. **ensemble_config.json**: Configuration of ensemble model. (The path of checkpoints)
 
-Model weights download:
-1. (Baidu Netdisk) URL: https://pan.baidu.com/s/1nnn8P4zqEUf2U9HXt2QPwQ   Code: w7t2 
-
 Citation: Zhang, Z., Qian, Z., Zhong, T., Chen, M., Zhang, K., Yang, Y., Zhu, R., Zhang, F., Zhang, H., Zhou, F. and Yu, J., 2022. Vectorized rooftop area data for 90 cities in China. Scientific Data, 9(1), pp.1-12.
